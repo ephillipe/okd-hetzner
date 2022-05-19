@@ -33,12 +33,7 @@ build {
   provisioner "shell" {
     inline = [
       "set -x",
-      "curl -sL https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/${var.latest_fedora_coreos_version}/x86_64/fedora-coreos-${var.latest_fedora_coreos_version}-metal.x86_64.raw.xz | xz -d | dd of=/dev/sda",
-      "mount /dev/sda3 /mnt",
-      "mkdir /mnt/ignition",
-      "set -x",
-      "cd",
-      "umount /mnt"
+      "curl -sL https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/${var.latest_fedora_coreos_version}/x86_64/fedora-coreos-${var.latest_fedora_coreos_version}-metal.x86_64.raw.xz | xz -d | dd of=/dev/sda"
     ]
   }
 }
