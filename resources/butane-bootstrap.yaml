@@ -1,6 +1,3 @@
-# Pull the bootstrap ignition file from a remote location
-# because it's larger than the cloud's user data limit. Also set the
-# hostname.
 variant: fcos
 version: 1.4.0
 ignition:
