@@ -3,7 +3,7 @@ version: 1.4.0
 ignition:
   config:
     merge:
-      - local: ./generated-files/worker.ign
+      - local: ./terraform/generated-files/worker.ign
 systemd:
   units:
   - name: sethostname.service

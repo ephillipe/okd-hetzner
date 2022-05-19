@@ -1,6 +1,6 @@
 Set environment variables:
 ```
-export HCLOUD_TOKEN=abc
+export HCLOUD_TOKEN="abc"
 ```
 
 Requirements:

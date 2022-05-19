@@ -1,9 +1,9 @@
 # BASEDOMAIN, CLUSTERNAME, NUM_OKD_WORKERS, NUM_OKD_CONTROL_PLANE, SSH_KEY
 # will be substituted with runtime values.
 apiVersion: v1
-baseDomain: BASEDOMAIN
+baseDomain: BASE_DOMAIN
 metadata:
-  name: CLUSTERNAME
+  name: CLUSTER_NAME
 compute:
 - hyperthreading: Enabled
   name: worker

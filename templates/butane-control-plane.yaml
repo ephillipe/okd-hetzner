@@ -3,7 +3,7 @@ version: 1.4.0
 ignition:
   config:
     merge:
-      - local: ./generated-files/master.ign
+      - local: ./master.ign
 systemd:
   units:
   - name: sethostname.service

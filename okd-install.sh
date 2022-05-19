@@ -2,7 +2,7 @@
 set -eu -o pipefail
 
 # Load the environment variables that control the behavior of this script.
-source ./config
+source ./.config
 
 # Returns a string representing the image ID for a given label.
 # Returns empty string if none exists
@@ -11,7 +11,7 @@ get_fedora_coreos_image_id() {
 }
 
 create_image_if_not_exists() {
-    echo -e "\nCreating custom Fedora CoreOS ${LATEST_FEDORA_COREOS_VERSION} image.\n"
+    echo -e "\nCreating custom Fedora CoreOS image.\n"
 
     # if image exists, return
     if [ "$(get_fedora_coreos_image_id)" != "" ]; then
@@ -20,8 +20,12 @@ create_image_if_not_exists() {
     fi
 
     # Create the image with packer
-    packer init ./resources/packer-fedora-coreos.pkr.hcl >/dev/null
-    packer build ./resources/packer-fedora-coreos.pkr.hcl >/dev/null
+    fedora_coreos_version=$(curl -s https://builds.coreos.fedoraproject.org/streams/stable.json | jq -r '.architectures.x86_64.artifacts.metal.release')
+
+    packer init ./packer/fedora-coreos.pkr.hcl >/dev/null
+
+    packer build ./packer/fedora-coreos.pkr.hcl \
+        -var 'fedora_coreos_version=${fedora_coreos_version}' >/dev/null
 
     # Wait for the image to finish being created
     for x in {0..100}; do
@@ -36,62 +40,81 @@ create_image_if_not_exists() {
     return 1
 }
 
-# generate_manifests() {
-#     echo -e "\nGenerating manifests/configs for install.\n"
+generate_manifests() {
+    echo -e "\nGenerating manifests/configs for install.\n"
 
-#     # Clear out old generated files
-#     rm -rf ./generated-files/ && mkdir ./generated-files
+    # Clear out old generated files
+    rm -rf ./terraform/generated-files/ && mkdir ./terraform/generated-files
 
-#     # Copy install-config in place (remove comments) and replace tokens
-#     # in the template with the actual values we want to use.
-#     grep -v '^#' resources/install-config.yaml.in > generated-files/install-config.yaml
-#     for token in BASEDOMAIN      \
-#                  CLUSTERNAME     \
-#                  NUM_OKD_WORKERS \
-#                  NUM_OKD_CONTROL_PLANE \
-#                  SSH_KEY;
-#     do
-#         sed -i "s/$token/${!token}/" generated-files/install-config.yaml
-#     done
+    # Copy install-config in place (remove comments) and replace tokens
+    # in the template with the actual values we want to use.
+    grep -v '^#' templates/install-config.yaml > terraform/generated-files/install-config.yaml
+    for token in BASE_DOMAIN      \
+                 CLUSTER_NAME     \
+                 NUM_OKD_WORKERS \
+                 NUM_OKD_CONTROL_PLANE \
+                 SSH_KEY;
+    do
+        sed -i "s#$token#${!token}#" terraform/generated-files/install-config.yaml
+    done
 
-#     # Generate manifests and create the ignition configs from that.
-#     openshift-install create manifests --dir=generated-files
-#     openshift-install create ignition-configs --dir=generated-files
+    # Download OKD tools if they do not exist locally
+    okd_tools_version=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/openshift/okd/tags | jq -j -r .[0].name)
 
-#     # Create a pod and serve the bootstrap ignition file via Cloudflare tunnels 
-#     # so we can pull from it on startup. It's too large to fit in user-data.
-#     sum=$(sha512sum ./generated-files/bootstrap.ign | cut -d ' ' -f 1)
-#     podman pod create -n ignition-server
-#     podman run -it -d --pod ignition-server --name ignition-server-nginx \
-#         -v ./generated-files/bootstrap.ign:/usr/share/nginx/html/bootstrap.ign:Z \
-#         docker.io/library/nginx:1.21.6-alpine
-#     podman run -it -d --pod ignition-server --name ignition-server-cloudflared \
-#         docker.io/cloudflare/cloudflared:2022.5.1 \
-#         tunnel --no-autoupdate --url http://localhost:80
+    ls | grep openshift-install-linux-${okd_tools_version} || \
+    wget -O openshift-install-linux-${okd_tools_version}.tar.gz https://github.com/openshift/okd/releases/download/${okd_tools_version}/openshift-install-linux-${okd_tools_version}.tar.gz >/dev/null
 
-#     # Get the URL from cloudflared container logs
-#     url=$(podman logs ignition-server-cloudflared | grep -Eo "https://[a-zA-Z0-9./?=_%:-]*trycloudflare.com")/bootstrap.ign
+    ls | grep openshift-client-linux-${okd_tools_version} || \
+	wget -O openshift-client-linux-${okd_tools_version}.tar.gz https://github.com/openshift/okd/releases/download/${okd_tools_version}/openshift-client-linux-${okd_tools_version}.tar.gz >/dev/null
 
-#     # backslash escape the '&' chars in the URL since '&' is interpreted by sed
-#     escapedurl=${url//&/\\&}
+    # Build container if it does not exist locally
+    podman image list --format json | grep ${okd_tools_version} || \
+    podman build --build-arg okd_tools_version=${okd_tools_version} -t okd-tools:${okd_tools_version} .
 
-#     # Add tweaks to the bootstrap ignition and a pointer to the remote bootstrap
-#     cat resources/butane-bootstrap.yaml | \
-#         sed "s|SHA512|sha512-${sum}|" | \
-#         sed "s|SOURCE_URL|${escapedurl}|" | \
-#         podman run --interactive --rm quay.io/coreos/butane:v0.14.0 \
-#         -o ./generated-files/bootstrap-processed.ign
+    # Generate manifests and create the ignition configs from that
+    podman run -it --hostname okd-tools -v ./:/workspace:Z okd-tools:${okd_tools_version} /bin/bash \
+        -c "cd /workspace; openshift-install create manifests --dir=terraform/generated-files; openshift-install create ignition-configs --dir=terraform/generated-files"
 
-#     # Add tweaks to the control plane config
-#     cat resources/butane-control-plane.yaml | \
-#         podman run --interactive --rm quay.io/coreos/butane:v0.14.0 \
-#         -d ./ -o ./generated-files/control-plane-processed.ign
+    # Create a pod and serve the bootstrap ignition file via Cloudflare tunnels 
+    # so we can pull from it on startup. It's too large to fit in user-data.
+    sum=$(sha512sum ./terraform/generated-files/bootstrap.ign | cut -d ' ' -f 1)
 
-#     # Add tweaks to the worker config
-#     cat resources/butane-worker.yaml | \
-#         podman run --interactive --rm quay.io/coreos/butane:v0.14.0 \
-#         -d ./ -o ./generated-files/worker-processed.ign
-# }
+    podman pod create -n ignition-server
+    
+    podman run -it -d --pod ignition-server --name ignition-server-nginx \
+        -v ./terraform/generated-files/bootstrap.ign:/usr/share/nginx/html/bootstrap.ign:Z \
+        docker.io/library/nginx:1.21.6-alpine
+    
+    podman run -it -d --pod ignition-server --name ignition-server-cloudflared \
+        docker.io/cloudflare/cloudflared:2022.5.1 \
+        tunnel --no-autoupdate --url http://localhost:80
+
+    # Allow nginx to read bootstrap ignition file
+    chmod 0644 terraform/generated-files/bootstrap.ign
+
+    # Get the URL from cloudflared container logs
+    url=$(podman logs ignition-server-cloudflared | grep -Eo "https://[a-zA-Z0-9./?=_%:-]*trycloudflare.com")/bootstrap.ign
+
+    # backslash escape the '&' chars in the URL since '&' is interpreted by sed
+    escapedurl=${url//&/\\&}
+
+    # Add tweaks to the bootstrap ignition and a pointer to the remote bootstrap
+    cat templates/butane-bootstrap.yaml | \
+        sed "s|SHA512|sha512-${sum}|" | \
+        sed "s|SOURCE_URL|${escapedurl}|" | \
+        podman run --interactive --rm quay.io/coreos/butane:v0.14.0 \
+        > ./terraform/generated-files/bootstrap-processed.ign
+
+    # Add tweaks to the control plane config
+    cat templates/butane-control-plane.yaml | \
+        podman run --interactive --rm quay.io/coreos/butane:v0.14.0 \
+        --files-dir terraform/generated-files > ./terraform/generated-files/control-plane-processed.ign
+
+    # Add tweaks to the worker config
+    cat templates/butane-worker.yaml | \
+        podman run --interactive --rm quay.io/coreos/butane:v0.14.0 \
+        -d ./ > ./terraform/generated-files/worker-processed.ign
+}
 
 # # returns if we have any worker nodes or not to create
 # have_workers() {
