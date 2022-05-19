@@ -1,8 +1,7 @@
 terraform/generated-files/
-.config
 terraform/.terraform
 terraform/.terraform*
 terraform/terraform.tfstate
 terraform/terraform.tfstate.*
-openshift-install-linux-*.tar.gz
-openshift-client-linux-*.tar.gz
+containers/openshift-install-linux-*.tar.gz
+containers/openshift-client-linux-*.tar.gz

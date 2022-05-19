@@ -3,7 +3,9 @@ version: 1.4.0
 ignition:
   config:
     merge:
-      - local: ./master.ign
+      - source: CONTROL_PLANE_SOURCE_URL
+        verification:
+          hash: CONTROL_PLANE_SHA512
 systemd:
   units:
   - name: sethostname.service

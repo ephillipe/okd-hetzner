@@ -3,9 +3,9 @@ version: 1.4.0
 ignition:
   config:
     merge:
-      - source: SOURCE_URL
+      - source: BOOTSTRAP_SOURCE_URL
         verification:
-          hash: SHA512
+          hash: BOOTSTRAP_SHA512
 systemd:
   units:
   - name: sethostname.service

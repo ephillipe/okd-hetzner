@@ -1,13 +1,13 @@
 data "local_file" "bootstrap_ignition" {
-  filename = "${path.root}/generated-files/bootstrap.ign"
+  filename = "${path.root}/generated-files/bootstrap-processed.ign"
 }
 
 data "local_file" "control_plane_ignition" {
-  filename = "${path.root}/generated-files/control-plane.ign"
+  filename = "${path.root}/generated-files/control-plane-processed.ign"
 }
 
 data "local_file" "worker_ignition" {
-  filename = "${path.root}/generated-files/worker.ign"
+  filename = "${path.root}/generated-files/worker-processed.ign"
 }
 
 resource "hcloud_server" "okd_bootstrap" {
@@ -26,7 +26,7 @@ resource "hcloud_server" "okd_bootstrap" {
     "type"    = "control_plane"
   }
   network {
-    network_id = hcloud_network.okd.id
+    network_id = "${hcloud_network.okd.id}"
   }
 }
 
@@ -48,7 +48,7 @@ resource "hcloud_server" "okd_control_plane" {
     "type"    = "control_plane"
   }
   network {
-    network_id = hcloud_network.okd.id
+    network_id = "${hcloud_network.okd.id}"
   }
 }
 
@@ -70,6 +70,6 @@ resource "hcloud_server" "okd_worker" {
     "type"    = "worker"
   }
   network {
-    network_id = hcloud_network.okd.id
+    network_id = "${hcloud_network.okd.id}"
   }
 }

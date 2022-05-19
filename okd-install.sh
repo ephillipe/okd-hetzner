@@ -1,9 +1,6 @@
 #!/bin/bash
 set -eu -o pipefail
 
-# Load the environment variables that control the behavior of this script.
-source ./.config
-
 # Returns a string representing the image ID for a given label.
 # Returns empty string if none exists
 get_fedora_coreos_image_id() {
@@ -40,6 +37,23 @@ create_image_if_not_exists() {
     return 1
 }
 
+download_okd_tools_if_not_exists() {
+    # Download OKD tools if they do not exist
+    okd_tools_version=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/openshift/okd/tags | jq -j -r .[0].name)
+
+    ls ./containers | grep openshift-install-linux-${okd_tools_version} || \
+    wget -O ./containers/openshift-install-linux-${okd_tools_version}.tar.gz https://github.com/openshift/okd/releases/download/${okd_tools_version}/openshift-install-linux-${okd_tools_version}.tar.gz >/dev/null
+
+    ls ./containers | grep openshift-client-linux-${okd_tools_version} || \
+	wget -O ./containers/openshift-client-linux-${okd_tools_version}.tar.gz https://github.com/openshift/okd/releases/download/${okd_tools_version}/openshift-client-linux-${okd_tools_version}.tar.gz >/dev/null
+}
+
+build_okd_tools_container_if_not_exists(){
+    # Build OKD tools container if it does not exist
+    podman image list --format json | grep ${okd_tools_version} || \
+    podman build --file ./containers/Containerfile --build-arg okd_tools_version=${okd_tools_version} -t okd-tools:${okd_tools_version} .
+}
+
 generate_manifests() {
     echo -e "\nGenerating manifests/configs for install.\n"
 
@@ -58,247 +72,113 @@ generate_manifests() {
         sed -i "s#$token#${!token}#" terraform/generated-files/install-config.yaml
     done
 
-    # Download OKD tools if they do not exist locally
-    okd_tools_version=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/openshift/okd/tags | jq -j -r .[0].name)
-
-    ls | grep openshift-install-linux-${okd_tools_version} || \
-    wget -O openshift-install-linux-${okd_tools_version}.tar.gz https://github.com/openshift/okd/releases/download/${okd_tools_version}/openshift-install-linux-${okd_tools_version}.tar.gz >/dev/null
-
-    ls | grep openshift-client-linux-${okd_tools_version} || \
-	wget -O openshift-client-linux-${okd_tools_version}.tar.gz https://github.com/openshift/okd/releases/download/${okd_tools_version}/openshift-client-linux-${okd_tools_version}.tar.gz >/dev/null
-
-    # Build container if it does not exist locally
-    podman image list --format json | grep ${okd_tools_version} || \
-    podman build --build-arg okd_tools_version=${okd_tools_version} -t okd-tools:${okd_tools_version} .
-
     # Generate manifests and create the ignition configs from that
     podman run -it --hostname okd-tools -v ./:/workspace:Z okd-tools:${okd_tools_version} /bin/bash \
         -c "cd /workspace; openshift-install create manifests --dir=terraform/generated-files; openshift-install create ignition-configs --dir=terraform/generated-files"
 
-    # Create a pod and serve the bootstrap ignition file via Cloudflare tunnels 
-    # so we can pull from it on startup. It's too large to fit in user-data.
-    sum=$(sha512sum ./terraform/generated-files/bootstrap.ign | cut -d ' ' -f 1)
+    # Create a pod and serve the ignition files via Cloudflare tunnels 
+    # so we can pull from it on startup. They're too large to fit in user-data.
+    bootstrap_sha256sum=$(sha512sum ./terraform/generated-files/bootstrap.ign | cut -d ' ' -f 1)
+    control_plane_sha256sum=$(sha512sum ./terraform/generated-files/master.ign | cut -d ' ' -f 1)
+    worker_sha256sum=$(sha512sum ./terraform/generated-files/worker.ign | cut -d ' ' -f 1)
 
     podman pod create -n ignition-server
     
     podman run -it -d --pod ignition-server --name ignition-server-nginx \
         -v ./terraform/generated-files/bootstrap.ign:/usr/share/nginx/html/bootstrap.ign:Z \
+        -v ./terraform/generated-files/master.ign:/usr/share/nginx/html/master.ign:Z \
+        -v ./terraform/generated-files/worker.ign:/usr/share/nginx/html/worker.ign:Z \
         docker.io/library/nginx:1.21.6-alpine
     
     podman run -it -d --pod ignition-server --name ignition-server-cloudflared \
         docker.io/cloudflare/cloudflared:2022.5.1 \
         tunnel --no-autoupdate --url http://localhost:80
 
-    # Allow nginx to read bootstrap ignition file
+    # Allow nginx to read ignition file
     chmod 0644 terraform/generated-files/bootstrap.ign
+    chmod 0644 terraform/generated-files/master.ign
+    chmod 0644 terraform/generated-files/worker.ign
 
-    # Get the URL from cloudflared container logs
-    url=$(podman logs ignition-server-cloudflared | grep -Eo "https://[a-zA-Z0-9./?=_%:-]*trycloudflare.com")/bootstrap.ign
-
-    # backslash escape the '&' chars in the URL since '&' is interpreted by sed
-    escapedurl=${url//&/\\&}
+    # Get the ignition URLs from cloudflared container logs
+    bootstrap_url=$(podman logs ignition-server-cloudflared | grep -Eo "https://[a-zA-Z0-9./?=_%:-]*trycloudflare.com")/bootstrap.ign
+    master_url=$(podman logs ignition-server-cloudflared | grep -Eo "https://[a-zA-Z0-9./?=_%:-]*trycloudflare.com")/master.ign
+    worker_url=$(podman logs ignition-server-cloudflared | grep -Eo "https://[a-zA-Z0-9./?=_%:-]*trycloudflare.com")/worker.ign
 
     # Add tweaks to the bootstrap ignition and a pointer to the remote bootstrap
     cat templates/butane-bootstrap.yaml | \
-        sed "s|SHA512|sha512-${sum}|" | \
-        sed "s|SOURCE_URL|${escapedurl}|" | \
+        sed "s|BOOTSTRAP_SHA512|sha512-${sum}|" | \
+        sed "s|BOOTSTRAP_SOURCE_URL|${bootstrap_url}|" | \
         podman run --interactive --rm quay.io/coreos/butane:v0.14.0 \
         > ./terraform/generated-files/bootstrap-processed.ign
 
     # Add tweaks to the control plane config
     cat templates/butane-control-plane.yaml | \
+        sed "s|CONTROL_PLANE_SHA512|sha512-${sum}|" | \
+        sed "s|CONTROL_PLANE_SOURCE_URL|${master_url}|" | \
         podman run --interactive --rm quay.io/coreos/butane:v0.14.0 \
-        --files-dir terraform/generated-files > ./terraform/generated-files/control-plane-processed.ign
+        > ./terraform/generated-files/control-plane-processed.ign
 
     # Add tweaks to the worker config
     cat templates/butane-worker.yaml | \
+        sed "s|WORKER_SHA512|sha512-${sum}|" | \
+        sed "s|WORKER_SOURCE_URL|${worker_url}|" | \
         podman run --interactive --rm quay.io/coreos/butane:v0.14.0 \
-        -d ./ > ./terraform/generated-files/worker-processed.ign
+        > ./terraform/generated-files/worker-processed.ign
 }
 
-# # returns if we have any worker nodes or not to create
-# have_workers() {
-#     if [ $NUM_OKD_WORKERS -gt 0 ]; then
-#         return 0
-#     else
-#         return 1
-#     fi
-# }
+which() {
+    (alias; declare -f) | /usr/bin/which --read-alias --read-functions --show-tilde --show-dot $@
+}
 
-# # prints a sequence of numbers to iterate over from 0 to N-1
-# # for the number of control plane nodes
-# control_plane_num_sequence() {
-#     seq 0 $((NUM_OKD_CONTROL_PLANE-1))
-# }
+check_requirement() {
+    req=$1
+    if ! which $req &>/dev/null; then
+        echo "No $req. Can't continue" 1>&2
+        return 1
+    fi
+}
 
-# # prints a sequence of numbers to iterate over from 0 to N-1
-# # for the number of worker nodes
-# worker_num_sequence() {
-#     seq 0 $((NUM_OKD_WORKERS-1))
-# }
+main() {
+    # Check for required credentials
+    for v in SSH_KEY      \
+             HCLOUD_TOKEN  \
+             CLUSTER_NAME \
+             BASE_DOMAIN \
+             NUM_OKD_WORKERS \
+             NUM_OKD_CONTROL_PLANE; do
+        if [[ -z "${!v-}" ]]; then
+            echo "You must set environment variable $v" >&2
+            return 1
+        fi
+    done
 
-# create_nodes() {
-#     echo -e "\nCreating node.\n"
+    # Check for required software
+    reqs=(
+        jq
+        hcloud
+        podman
+        packer
+        terraform
+    )
+    for req in ${reqs[@]}; do
+        check_requirement $req
+    done
 
-#     local common_options=''
-#     common_options+="--image $(get_fedora_coreos_image_id) "
-#     common_options+="--network $(get_private_network_id) "
-#     common_options+="--ssh-key $NODE_SSH_KEYPAIR "
-#     common_options+="--label $ALL_NODES_LABEL "
+    # Create Fedora CoreOS image
+    create_image_if_not_exists
 
-#     # Create bootstrap node
-#     hcloud server create $common_options \
-#         --name "okd-bootstrap" \
-#         --label "${CONTROL_PLANE_NODE_LABEL}" \
-#         --location "$BOOTSTRAP_NODE_LOCATION" \
-#         --type "$BOOTSTRAP_NODE_TYPE" \
-#         --user-data-from-file generated-files/bootstrap-processed.ign >/dev/null
+    # Download OKD tools if they do not exist
+    download_okd_tools_if_not_exists
 
-#     # Create control plane nodes
-#     for num in $(control_plane_num_sequence); do
-#         hcloud server create $common_options \
-#             --name "okd-control-${num}" \
-#             --label "${CONTROL_PLANE_NODE_LABEL}" \
-#             --location "${CONTROL_PLANE_NODE_LOCATION[@]}" \
-#             --type "$CONTROL_PLANE_NODE_TYPE" \
-#             --user-data-from-file generated-files/control-plane-processed.ign >/dev/null
-#     done
+    # Build OKD tools container if it does not exist
+    build_okd_tools_container_if_not_exists
 
-#     # Create worker nodes
-#     if have_workers; then
-#         for num in $(worker_num_sequence); do
-#             hcloud server create $common_options \
-#                 --name "okd-worker-${num}" \
-#                 --label "${WORKER_NODE_LABEL}" \
-#                 --location "$WORKER_NODE_LOCATION" \
-#                 --type "$WORKER_NODE_TYPE" \
-#                 --user-data-from-file ./generated-files/worker-processed.ign >/dev/null
-#         done
-#     fi
-# }
+    # Generate and serve the ignition configs
+    generate_manifests
 
-# create_load_balancer() {
-#     echo -e "\nCreating load-balancer.\n"
-
-#     # Create a load balancer that passes through port 80 443 6443 22623 traffic.
-#     # to all nodes tagged as control plane nodes.
-#     hcloud load-balancer create \
-#         --name $DOMAIN \
-#         --network-zone $LOAD_BALANCER_LOCATION \
-#         --type $LOAD_BALANCER_TYPE \
-#         --algorithm-type 'round_robin' \
-#         --label $CONTROL_PLANE_NODE_LABEL >/dev/null
-
-#     # Attach load balancer to network
-#     hcloud load-balancer attach-to-network $(get_load_balancer_id) \
-#         --network $(get_private_network_id)
-
-#     # Add services and health checks to load balancer
-#     for port in 80 443 6443 22623; do
-#         hcloud load-balancer add-service $(get_load_balancer_id) \
-#             --destination-port ${port} \
-#             --listen-port ${port} \
-#             --protocol 'tcp' >/dev/null
-
-#         hcloud load-balancer update-service $(get_load_balancer_id) \
-#             --health-check-protocol 'tcp' \
-#             --health-check-port ${port} \
-#             --health-check-interval 10s \
-#             --health-check-timeout 10s \
-#             --health-check-retries 3 \
-#             --listen-port ${port} >/dev/null
-#     done
-
-#     # Add targets to load balancer
-#     hcloud load-balancer add-target $(get_load_balancer_id) \
-#         --label-selector $CONTROL_PLANE_NODE_LABEL >/dev/null
-
-#     # wait for load balancer to come up
-#     ip='null'
-#     while [ "${ip}" == 'null' ]; do
-#         echo "Waiting for load balancer to come up..."
-#         sleep 5
-#         ip=$(get_load_balancer_ip)
-#     done
-# }
-
-# get_load_balancer_id() {
-#     hcloud load-balancer list -o json | \
-#         jq -r ".[] | select(.name == \"${DOMAIN}\").id"
-# }
-
-# get_load_balancer_ip() {
-#     hcloud load-balancer list -o json | \
-#         jq -r ".[] | select(.name == \"${DOMAIN}\").public_net.ipv4.ip"
-# }
-
-# create_firewall() {
-#     echo -e "\nCreating firewall.\n"
-
-#     # Create firewall
-#     hcloud firewall create \
-#         --name $DOMAIN \
-#         --label $ALL_NODES_LABEL >/dev/null
-
-#     # Allow anything from our private network and all node to node traffic
-#     # even if it comes from a public interface
-#     iprange=$(get_okd_private_network_ip_range)
-
-#     for protocol in 'udp' 'tcp' 'icmp'; do
-#         hcloud firewall add-rule $(get_firewall_id) \
-#             --description 'Internal inbound traffic - ${protocol}' \
-#             --protocol ${protocol} \
-#             --direction 'in' \
-#             --source-ips $iprange >/dev/null
-#     done
-
-#     # Allow all outbound traffic
-#     for protocol in 'udp' 'tcp'; do
-#         hcloud firewall add-rule $(get_firewall_id) \
-#             --description 'Internal outbound traffic - ${protocol}' \
-#             --protocol ${protocol} \
-#             --direction 'out' \
-#             --destination-ips '["0.0.0.0", "::/0"]' \
-#             --port '1-65535' >/dev/null
-#     done
-
-#     hcloud firewall add-rule $(get_firewall_id) \
-#         --description 'Internal outbound traffic - icmp' \
-#         --protocol 'icmp' \
-#         --direction 'out' \
-#         --destination-ips '["0.0.0.0/0", "::/0"]' >/dev/null
-
-#     # Allow tcp 22 80 443 6443 22623 from the public
-#     for port in 22 80 443 6443 22623; do
-#         hcloud firewall add-rule $(get_firewall_id) \
-#             --description 'External inbound traffic - ${port}' \
-#             --protocol 'tcp' \
-#             --direction 'in' \
-#             --source-ips '["0.0.0.0/0", "::/0"]' \
-#             --port ${port} >/dev/null
-#     done
-# }
-
-# get_firewall_id() {
-#     hcloud firewall list -o json | \
-#         jq -r ".[] | select(.name == \"${DOMAIN}\").id"
-# }
-
-# create_private_network() {
-#     echo -e "\nCreating private_network for private traffic.\n"
-#     hcloud network create \
-#         --name $DOMAIN \
-#         --ip-range $okd_private_network_ip_range \
-#         --label $ALL_NODES_LABEL >/dev/null
-# }
-
-# get_private_network_id() {
-#     hcloud network list -o json | \
-#         jq -r ".[] | select(.name == \"${DOMAIN}\").id"
-# }
-
-# get_okd_private_network_ip_range() {
-#     hcloud network list -o json | \
-#         jq -r ".[] | select(.name == \"${DOMAIN}\").ip_range"
-# }
-
+    # Create the servers, load balancer, private network, firewall and
+    # create DNS/RDNS records
+    terraform -chdir=./terraform apply \
+    -var fedora_coreos_image_id=$(get_fedora_coreos_image_id) \
+    -var cloudflare_dns_zone_id=
+}

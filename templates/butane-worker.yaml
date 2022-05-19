@@ -3,7 +3,9 @@ version: 1.4.0
 ignition:
   config:
     merge:
-      - local: ./terraform/generated-files/worker.ign
+      - source: WORKER_SOURCE_URL
+        verification:
+          hash: WORKER_SHA512
 systemd:
   units:
   - name: sethostname.service
