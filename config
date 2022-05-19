@@ -1,0 +1,52 @@
+# vim: set syntax=bash
+
+# This file contains values that control the behavior of the
+# hetzner-okd-install script.
+
+LATEST_FEDORA_COREOS_VERSION=$(curl -s https://builds.coreos.fedoraproject.org/streams/stable.json | jq -r '.architectures.x86_64.artifacts.metal.release')
+
+# Set the name/domain you'd like to use for this cluster.
+CLUSTERNAME='okd'
+BASEDOMAIN='example.com'
+DOMAIN="${CLUSTERNAME}.${BASEDOMAIN}"
+
+# Determine how many control plane and worker nodes you'd like.
+# Minimum workers=0. Minimum control plane=3. If no workers then
+# the control pane nodes will be marked as schedulable.
+# If NUM_OKD_CONTROL_PLANE != 3, then adjust CONTROL_PLANE_SERVER_LOCATION
+# variable accordingly.
+NUM_OKD_WORKERS=2
+NUM_OKD_CONTROL_PLANE=3
+
+# Set the locations to use.
+BOOTSTRAP_NODE_LOCATION="nbg1"
+WORKER_SERVER_LOCATION="nbg1"
+CONTROL_PLANE_SERVER_LOCATION=("nbg1" "hel1" "fsn1")
+
+# The ssh keypair id or name (required to start a node)
+# `hcloud ssh-key list` to find IDs/names
+NODE_SSH_KEYPAIR='default'
+
+# The size/types of the nodes
+# `hcloud server-type list` for more options
+BOOTSTRAP_NODE_TYPE="cpx41"
+CONTROL_PLANE_NODE_TYPE="cpx41"
+WORKER_NODE_TYPE="cpx41"
+
+# Set a label to use for all droplets, control plane, and workers
+ALL_NODES_LABEL="cluster=$CLUSTERNAME"
+CONTROL_PLANE_NODE_LABEL="type=control_plane"
+WORKER_NODE_LABEL="type=worker"
+
+# The type of the load balancer
+# `hcloud load-balancer-type list` for more options
+LOAD_BALANCER_TYPE='lb11'
+
+# The location of the load balancer
+LOAD_BALANCER_LOCATION='eu-central'
+
+# The private network IP range
+okd_private_network_ip_range='10.0.0.0/8'
+
+# The size of the backing volume for the container registry
+REGISTRY_VOLUME_SIZE='20' # in GiB

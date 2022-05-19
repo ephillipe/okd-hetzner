@@ -1,0 +1,18 @@
+# BASEDOMAIN, CLUSTERNAME, NUM_OKD_WORKERS, NUM_OKD_CONTROL_PLANE, SSH_KEY
+# will be substituted with runtime values.
+apiVersion: v1
+baseDomain: BASEDOMAIN
+metadata:
+  name: CLUSTERNAME
+compute:
+- hyperthreading: Enabled
+  name: worker
+  replicas: NUM_OKD_WORKERS
+controlPlane:
+  hyperthreading: Enabled
+  name: master 
+  replicas: NUM_OKD_CONTROL_PLANE
+platform:
+  none: {}
+pullSecret: '{"auths":{"fake":{"auth":"aWQ6cGFzcwo="}}}'
+sshKey: SSH_KEY
