@@ -10,8 +10,9 @@ NUM_OKD_CONTROL_PLANE=3
 REGISTRY_VOLUME_SIZE='50'
 
 # Set tools and OS versions
-okd_tools_version=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/openshift/okd/tags | jq -j -r .[0].name)
-fedora_coreos_version=$(curl -s https://builds.coreos.fedoraproject.org/streams/stable.json | jq -r '.architectures.x86_64.artifacts.metal.release')
+OKD_TOOLS_VERSION=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/openshift/okd/tags | jq -j -r .[0].name)
+FEDORA_COREOS_VERSION=$(curl -s https://builds.coreos.fedoraproject.org/streams/stable.json | jq -r '.architectures.x86_64.artifacts.metal.release')
+HCLOUD_CSI_VERSION=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/hetznercloud/csi-driver/tags | jq -j -r .[0].name)
 
 # Returns a string representing the image ID for a given label.
 # Returns empty string if none exists
@@ -32,7 +33,7 @@ create_image_if_not_exists() {
     packer init ./packer/fedora-coreos.pkr.hcl >/dev/null
 
     packer build ./packer/fedora-coreos.pkr.hcl \
-        -var 'fedora_coreos_version=${fedora_coreos_version}' >/dev/null
+        -var 'fedora_coreos_version=${FEDORA_COREOS_VERSION}' >/dev/null
 
     # Wait for the image to finish being created
     for x in {0..100}; do
@@ -50,7 +51,7 @@ create_image_if_not_exists() {
 download_okd_tools_if_not_exists() {
     echo -e "\nDownloading and installing OKD tools.\n"
 
-    if oc version | grep $okd_tools_version >/dev/null; then
+    if oc version | grep ${OKD_TOOLS_VERSION} >/dev/null; then
         echo "Correct OKD tools version already exists. Skipping OKD tools download and installation."
         return 0
     fi
@@ -61,24 +62,24 @@ download_okd_tools_if_not_exists() {
     rm -f ~/.local/bin/kubectl
 
     # Download OKD tools
-    curl -sSL https://github.com/openshift/okd/releases/download/${okd_tools_version}/openshift-install-linux-${okd_tools_version}.tar.gz -o openshift-install-linux-${okd_tools_version}.tar.gz >/dev/null
-    curl -sSL https://github.com/openshift/okd/releases/download/${okd_tools_version}/openshift-client-linux-${okd_tools_version}.tar.gz -o openshift-client-linux-${okd_tools_version}.tar.gz >/dev/null
+    curl -sSL https://github.com/openshift/okd/releases/download/${OKD_TOOLS_VERSION}/openshift-install-linux-${OKD_TOOLS_VERSION}.tar.gz -o openshift-install-linux-${OKD_TOOLS_VERSION}.tar.gz >/dev/null
+    curl -sSL https://github.com/openshift/okd/releases/download/${OKD_TOOLS_VERSION}/openshift-client-linux-${OKD_TOOLS_VERSION}.tar.gz -o openshift-client-linux-${OKD_TOOLS_VERSION}.tar.gz >/dev/null
 
     # Install OKD tools
-    tar -zxf openshift-install-linux-${okd_tools_version}.tar.gz -C ~/.local/bin/ openshift-install
-    tar -zxf openshift-client-linux-${okd_tools_version}.tar.gz -C ~/.local/bin/ oc
-    tar -zxf openshift-client-linux-${okd_tools_version}.tar.gz -C ~/.local/bin/ kubectl
+    tar -zxf openshift-install-linux-${OKD_TOOLS_VERSION}.tar.gz -C ~/.local/bin/ openshift-install
+    tar -zxf openshift-client-linux-${OKD_TOOLS_VERSION}.tar.gz -C ~/.local/bin/ oc
+    tar -zxf openshift-client-linux-${OKD_TOOLS_VERSION}.tar.gz -C ~/.local/bin/ kubectl
 
     # Cleanup tars
-    rm -f openshift-install-linux-${okd_tools_version}.tar.gz
-    rm -f openshift-client-linux-${okd_tools_version}.tar.gz
+    rm -f openshift-install-linux-${OKD_TOOLS_VERSION}.tar.gz
+    rm -f openshift-client-linux-${OKD_TOOLS_VERSION}.tar.gz
 }
 
 generate_manifests() {
     echo -e "\nGenerating manifests/configs for install.\n"
 
     # Clear out old generated files
-    rm -rf ./terraform/generated-files/ && mkdir ./terraform/generated-files
+    rm -rf terraform/generated-files/ && mkdir terraform/generated-files
 
     # Copy install-config in place (remove comments) and replace tokens
     # in the template with the actual values we want to use.
@@ -98,16 +99,16 @@ generate_manifests() {
 
     # Create a pod and serve the ignition files via Cloudflare tunnels 
     # so we can pull from it on startup. They're too large to fit in user-data.
-    bootstrap_sha256sum=$(sha512sum ./terraform/generated-files/bootstrap.ign | cut -d ' ' -f 1)
-    control_plane_sha256sum=$(sha512sum ./terraform/generated-files/master.ign | cut -d ' ' -f 1)
-    worker_sha256sum=$(sha512sum ./terraform/generated-files/worker.ign | cut -d ' ' -f 1)
+    bootstrap_sha256sum=$(sha512sum terraform/generated-files/bootstrap.ign | cut -d ' ' -f 1)
+    control_plane_sha256sum=$(sha512sum terraform/generated-files/master.ign | cut -d ' ' -f 1)
+    worker_sha256sum=$(sha512sum terraform/generated-files/worker.ign | cut -d ' ' -f 1)
 
     podman pod create -n ignition-server
     
     podman run -it -d --pod ignition-server --name ignition-server-nginx \
-        -v ./terraform/generated-files/bootstrap.ign:/usr/share/nginx/html/bootstrap.ign:Z \
-        -v ./terraform/generated-files/master.ign:/usr/share/nginx/html/master.ign:Z \
-        -v ./terraform/generated-files/worker.ign:/usr/share/nginx/html/worker.ign:Z \
+        -v terraform/generated-files/bootstrap.ign:/usr/share/nginx/html/bootstrap.ign:Z \
+        -v terraform/generated-files/master.ign:/usr/share/nginx/html/master.ign:Z \
+        -v terraform/generated-files/worker.ign:/usr/share/nginx/html/worker.ign:Z \
         docker.io/library/nginx:1.21.6-alpine
     
     podman run -it -d --pod ignition-server --name ignition-server-cloudflared \
@@ -127,21 +128,21 @@ generate_manifests() {
         sed "s|BOOTSTRAP_SHA512|sha512-${sum}|" | \
         sed "s|BOOTSTRAP_SOURCE_URL|${ignition_url}/bootstrap.ign|" | \
         podman run --interactive --rm quay.io/coreos/butane:v0.14.0 \
-        > ./terraform/generated-files/bootstrap-processed.ign
+        > terraform/generated-files/bootstrap-processed.ign
 
     # Add tweaks to the control plane config
     cat templates/butane-control-plane.yaml | \
         sed "s|CONTROL_PLANE_SHA512|sha512-${sum}|" | \
         sed "s|CONTROL_PLANE_SOURCE_URL|${ignition_url}/master.ign|" | \
         podman run --interactive --rm quay.io/coreos/butane:v0.14.0 \
-        > ./terraform/generated-files/control-plane-processed.ign
+        > terraform/generated-files/control-plane-processed.ign
 
     # Add tweaks to the worker config
     cat templates/butane-worker.yaml | \
         sed "s|WORKER_SHA512|sha512-${sum}|" | \
         sed "s|WORKER_SOURCE_URL|${ignition_url}/worker.ign|" | \
         podman run --interactive --rm quay.io/coreos/butane:v0.14.0 \
-        > ./terraform/generated-files/worker-processed.ign
+        > terraform/generated-files/worker-processed.ign
 }
 
 # prints a sequence of numbers to iterate over from 0 to N-1
@@ -171,8 +172,7 @@ stringData:
 EOF
 
     # Deploy Hetzner's CSI storage provisioner
-    HCLOUD_CSI_VERSION='1.6.0'
-    oc apply -f https://raw.githubusercontent.com/hetznercloud/csi-driver/v${HCLOUD_CSI_VERSION}/deploy/kubernetes/hcloud-csi.yml >/dev/null
+    oc apply -f https://raw.githubusercontent.com/hetznercloud/csi-driver/${HCLOUD_CSI_VERSION}/deploy/kubernetes/hcloud-csi.yml >/dev/null
 }
 
 fixup_registry_storage() {
