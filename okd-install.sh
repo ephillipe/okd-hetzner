@@ -99,31 +99,94 @@ generate_manifests() {
     chmod 0644 terraform/generated-files/master.ign
     chmod 0644 terraform/generated-files/worker.ign
 
-    # Get the ignition URLs from cloudflared container logs
-    bootstrap_url=$(podman logs ignition-server-cloudflared | grep -Eo "https://[a-zA-Z0-9./?=_%:-]*trycloudflare.com")/bootstrap.ign
-    master_url=$(podman logs ignition-server-cloudflared | grep -Eo "https://[a-zA-Z0-9./?=_%:-]*trycloudflare.com")/master.ign
-    worker_url=$(podman logs ignition-server-cloudflared | grep -Eo "https://[a-zA-Z0-9./?=_%:-]*trycloudflare.com")/worker.ign
+    # Get the ignition domain from cloudflared container logs
+    ignition_url=$(podman logs ignition-server-cloudflared | grep -Eo "https://[a-zA-Z0-9./?=_%:-]*trycloudflare.com")
 
     # Add tweaks to the bootstrap ignition and a pointer to the remote bootstrap
     cat templates/butane-bootstrap.yaml | \
         sed "s|BOOTSTRAP_SHA512|sha512-${sum}|" | \
-        sed "s|BOOTSTRAP_SOURCE_URL|${bootstrap_url}|" | \
+        sed "s|BOOTSTRAP_SOURCE_URL|${ignition_url}/bootstrap.ign|" | \
         podman run --interactive --rm quay.io/coreos/butane:v0.14.0 \
         > ./terraform/generated-files/bootstrap-processed.ign
 
     # Add tweaks to the control plane config
     cat templates/butane-control-plane.yaml | \
         sed "s|CONTROL_PLANE_SHA512|sha512-${sum}|" | \
-        sed "s|CONTROL_PLANE_SOURCE_URL|${master_url}|" | \
+        sed "s|CONTROL_PLANE_SOURCE_URL|${ignition_url}/master.ign|" | \
         podman run --interactive --rm quay.io/coreos/butane:v0.14.0 \
         > ./terraform/generated-files/control-plane-processed.ign
 
     # Add tweaks to the worker config
     cat templates/butane-worker.yaml | \
         sed "s|WORKER_SHA512|sha512-${sum}|" | \
-        sed "s|WORKER_SOURCE_URL|${worker_url}|" | \
+        sed "s|WORKER_SOURCE_URL|${ignition_url}/worker.ign|" | \
         podman run --interactive --rm quay.io/coreos/butane:v0.14.0 \
         > ./terraform/generated-files/worker-processed.ign
+}
+
+# https://github.com/digitalocean/csi-digitalocean
+configure_hetzner_cloud_volumes_driver() {
+    echo -e "\nCreating Hetzner cloud volumes driver.\n"
+    # Create the secret that contains the Hetzner token for volume creation
+    oc create -f - >/dev/null <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: hcloud
+  namespace: kube-system
+stringData:
+  token: "${HCLOUD_TOKEN}"
+EOF
+
+    # Deploy Hetzner's CSI storage provisioner
+    HCLOUD_CSI_VERSION='1.6.0'
+    oc apply -f https://raw.githubusercontent.com/hetznercloud/csi-driver/v${HCLOUD_CSI_VERSION}/deploy/kubernetes/hcloud-csi.yml >/dev/null
+}
+
+fixup_registry_storage() {
+    echo -e "\nFixing the registry storage to use Hetzner volume.\n"
+    # Set the registry to be managed.
+    # Will cause it to try and create a PVC.
+    PATCH='
+    spec:
+      managementState: Managed
+      storage:
+        pvc:
+          claim:'
+    oc patch configs.imageregistry.operator.openshift.io cluster --type merge -p "$PATCH" >/dev/null
+
+    # Update the image-registry deployment to not have a rolling update strategy
+    # because it won't work with a RWO backing device.
+    # https://docs.openshift.com/container-platform/4.10/applications/deployments/deployment-strategies.html
+    PATCH='
+    spec:
+      strategy:
+        $retainKeys:
+          - type
+        type: Recreate'
+    sleep 10 # wait a bit for image-registry deployment
+    oc patch deployment image-registry -n openshift-image-registry -p "$PATCH" >/dev/null
+
+    # scale the deployment down to 1 desired pod since the volume for
+    # the registry can only be attached to one node at a time
+    oc scale --replicas=1 deployment/image-registry -n openshift-image-registry >/dev/null
+
+    # Replace the PVC with a RWO one (hcloud volumes only support RWO)
+    oc delete pvc/image-registry-storage -n openshift-image-registry >/dev/null
+    oc create -f - >/dev/null <<EOF
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: image-registry-storage
+  namespace: openshift-image-registry
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: ${REGISTRY_VOLUME_SIZE}Gi
+  storageClassName: do-block-storage
+EOF
 }
 
 which() {
