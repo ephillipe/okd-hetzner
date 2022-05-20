@@ -109,9 +109,9 @@ generate_manifests() {
     podman pod create -n ignition-server
     
     podman run -it -d --pod ignition-server --name ignition-server-nginx \
-        -v terraform/generated-files/bootstrap.ign:/usr/share/nginx/html/bootstrap.ign:Z \
-        -v terraform/generated-files/master.ign:/usr/share/nginx/html/master.ign:Z \
-        -v terraform/generated-files/worker.ign:/usr/share/nginx/html/worker.ign:Z \
+        -v ./terraform/generated-files/bootstrap.ign:/usr/share/nginx/html/bootstrap.ign:Z \
+        -v ./terraform/generated-files/master.ign:/usr/share/nginx/html/master.ign:Z \
+        -v ./terraform/generated-files/worker.ign:/usr/share/nginx/html/worker.ign:Z \
         docker.io/library/nginx:1.21.6-alpine
     
     podman run -it -d --pod ignition-server --name ignition-server-cloudflared \
@@ -126,23 +126,32 @@ generate_manifests() {
     # Get the ignition domain from cloudflared container logs
     ignition_url=$(podman logs ignition-server-cloudflared | grep -Eo "https://[a-zA-Z0-9./?=_%:-]*trycloudflare.com")
 
+    # Wait for Cloudflare tunnel to be available
+    for x in {0..100}; do
+        if curl -s -o /dev/null -I -w "%{http_code}" ${ignition_url}/bootstrap.ign | grep 200; then
+            break # Tunnel is available
+        fi
+        echo "Waiting for Cloudflare tunnel to become available..."
+        sleep 10
+    done
+
     # Add tweaks to the bootstrap ignition and a pointer to the remote bootstrap
     cat templates/butane-bootstrap.yaml | \
-        sed "s|BOOTSTRAP_SHA512|sha512-${sum}|" | \
+        sed "s|BOOTSTRAP_SHA512|sha512-${bootstrap_sha256sum}|" | \
         sed "s|BOOTSTRAP_SOURCE_URL|${ignition_url}/bootstrap.ign|" | \
         podman run --interactive --rm quay.io/coreos/butane:v0.14.0 \
         > terraform/generated-files/bootstrap-processed.ign
 
     # Add tweaks to the control plane config
     cat templates/butane-control-plane.yaml | \
-        sed "s|CONTROL_PLANE_SHA512|sha512-${sum}|" | \
+        sed "s|CONTROL_PLANE_SHA512|sha512-${control_plane_sha256sum}|" | \
         sed "s|CONTROL_PLANE_SOURCE_URL|${ignition_url}/master.ign|" | \
         podman run --interactive --rm quay.io/coreos/butane:v0.14.0 \
         > terraform/generated-files/control-plane-processed.ign
 
     # Add tweaks to the worker config
     cat templates/butane-worker.yaml | \
-        sed "s|WORKER_SHA512|sha512-${sum}|" | \
+        sed "s|WORKER_SHA512|sha512-${worker_sha256sum}|" | \
         sed "s|WORKER_SOURCE_URL|${ignition_url}/worker.ign|" | \
         podman run --interactive --rm quay.io/coreos/butane:v0.14.0 \
         > terraform/generated-files/worker-processed.ign
