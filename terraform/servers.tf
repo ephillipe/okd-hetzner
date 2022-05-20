@@ -1,13 +1,13 @@
 data "local_file" "bootstrap_ignition" {
-  filename = "${path.root}/generated-files/bootstrap-processed.ign"
+  filename = "${path.module}/generated-files/bootstrap-processed.ign"
 }
 
 data "local_file" "control_plane_ignition" {
-  filename = "${path.root}/generated-files/control-plane-processed.ign"
+  filename = "${path.module}/generated-files/control-plane-processed.ign"
 }
 
 data "local_file" "worker_ignition" {
-  filename = "${path.root}/generated-files/worker-processed.ign"
+  filename = "${path.module}/generated-files/worker-processed.ign"
 }
 
 resource "hcloud_server" "okd_bootstrap" {
