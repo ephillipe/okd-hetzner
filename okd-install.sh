@@ -1,6 +1,18 @@
 #!/bin/bash
 set -eu -o pipefail
 
+# Set variables
+SSH_KEY=$(cat ~/.ssh/id_ed25519.pub)
+CLUSTER_NAME="okd"
+DOMAIN="${CLUSTER_NAME}.${BASE_DOMAIN}"
+NUM_OKD_WORKERS=2
+NUM_OKD_CONTROL_PLANE=3
+REGISTRY_VOLUME_SIZE='50'
+
+# Set tools and OS versions
+okd_tools_version=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/openshift/okd/tags | jq -j -r .[0].name)
+fedora_coreos_version=$(curl -s https://builds.coreos.fedoraproject.org/streams/stable.json | jq -r '.architectures.x86_64.artifacts.metal.release')
+
 # Returns a string representing the image ID for a given label.
 # Returns empty string if none exists
 get_fedora_coreos_image_id() {
@@ -17,8 +29,6 @@ create_image_if_not_exists() {
     fi
 
     # Create the image with packer
-    fedora_coreos_version=$(curl -s https://builds.coreos.fedoraproject.org/streams/stable.json | jq -r '.architectures.x86_64.artifacts.metal.release')
-
     packer init ./packer/fedora-coreos.pkr.hcl >/dev/null
 
     packer build ./packer/fedora-coreos.pkr.hcl \
@@ -39,8 +49,6 @@ create_image_if_not_exists() {
 
 download_okd_tools_if_not_exists() {
     # Download OKD tools if they do not exist
-    okd_tools_version=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/openshift/okd/tags | jq -j -r .[0].name)
-
     ls ./containers | grep openshift-install-linux-${okd_tools_version} || \
     wget -O ./containers/openshift-install-linux-${okd_tools_version}.tar.gz https://github.com/openshift/okd/releases/download/${okd_tools_version}/openshift-install-linux-${okd_tools_version}.tar.gz >/dev/null
 
@@ -289,20 +297,27 @@ main() {
     # Create the servers, load balancer, private network, firewall and
     # create DNS/RDNS records
     terraform -chdir=./terraform apply \
-    -var fedora_coreos_image_id=$(get_fedora_coreos_image_id) \
-    -var cloudflare_dns_zone_id=
+        -auto-approve \
+        -var fedora_coreos_image_id=$(get_fedora_coreos_image_id) \
+        -var cloudflare_dns_zone_id=
 
-    # # Wait for the bootstrap to complete
-    # echo -e "\nWaiting for bootstrap to complete.\n"
-    # openshift-install --dir=generated-files  wait-for bootstrap-complete
+    # Wait for the bootstrap to complete
+    echo -e "\nWaiting for bootstrap to complete.\n"
 
-    # # remove bootstrap node and config space as bootstrap is complete
-    # echo -e "\nRemoving bootstrap resources.\n"
-    # doctl compute droplet delete bootstrap --force >/dev/null
-    # aws --endpoint-url $SPACES_ENDPOINT s3 rb $SPACES_BUCKET --force >/dev/null
+    podman run -it --hostname okd-tools -v ./:/workspace:Z okd-tools:${okd_tools_version} /bin/bash \
+        -c "cd /workspace; openshift-install --dir=terraform/generated-files wait-for bootstrap-complete"
 
-    # # Set the KUBECONFIG so subsequent oc or kubectl commands can run
-    # export KUBECONFIG=${PWD}/generated-files/auth/kubeconfig
+    # Remove bootstrap node and nginx/cloudflared containers as bootstrap is complete
+    echo -e "\nRemoving bootstrap resources.\n"
+    terraform -chdir=./terraform destroy \
+        -auto-approve \
+        --target hcloud_server.okd_bootstrap
+
+    podman stop ignition-server-nginx && podman rm ignition-server-nginx
+    podman stop ignition-server-cloudflared && podman rm ignition-server-cloudflared
+
+    # Set the KUBECONFIG so subsequent oc or kubectl commands can run
+    export KUBECONFIG=/workspace/terraform/generated-files/auth/kubeconfig
 
     # # Wait for CSRs to come in and approve them before moving on
     # wait_and_approve_CSRs
