@@ -8,7 +8,7 @@ packer {
 }
 
 variable "hcloud_token" {
-  type = string
+  type    = string
   default = env("HCLOUD_TOKEN")
 }
 
@@ -34,7 +34,23 @@ build {
   provisioner "shell" {
     inline = [
       "set -x",
-      "curl -sL https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/${var.fedora_coreos_version}/x86_64/fedora-coreos-${var.fedora_coreos_version}-metal.x86_64.raw.xz | xz -d | dd of=/dev/sda"
+      "curl -sL https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/${var.fedora_coreos_version}/x86_64/fedora-coreos-${var.fedora_coreos_version}-metal.x86_64.raw.xz | xz -d | dd of=/dev/sda",
+      "mount /dev/sda3 /mnt",
+      "mkdir /mnt/ignition"
     ]
   }
+
+  provisioner "file" {
+    source      = "packer/config.ign"
+    destination = "/mnt/ignition/config.ign"
+  }
+
+  provisioner "shell" {
+    inline = [
+      "set -x",
+      "umount /mnt",
+      "poweroff"
+    ]
+  }
+
 }
