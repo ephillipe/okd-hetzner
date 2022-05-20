@@ -48,18 +48,30 @@ create_image_if_not_exists() {
 }
 
 download_okd_tools_if_not_exists() {
-    # Download OKD tools if they do not exist
-    ls ./containers | grep openshift-install-linux-${okd_tools_version} || \
-    wget -O ./containers/openshift-install-linux-${okd_tools_version}.tar.gz https://github.com/openshift/okd/releases/download/${okd_tools_version}/openshift-install-linux-${okd_tools_version}.tar.gz >/dev/null
+    echo -e "\nDownloading and installing OKD tools.\n"
 
-    ls ./containers | grep openshift-client-linux-${okd_tools_version} || \
-	wget -O ./containers/openshift-client-linux-${okd_tools_version}.tar.gz https://github.com/openshift/okd/releases/download/${okd_tools_version}/openshift-client-linux-${okd_tools_version}.tar.gz >/dev/null
-}
+    if oc version | grep $okd_tools_version >/dev/null; then
+        echo "Correct OKD tools version already exists. Skipping OKD tools download and installation."
+        return 0
+    fi
 
-build_okd_tools_container_if_not_exists(){
-    # Build OKD tools container if it does not exist
-    podman image list --format json | grep ${okd_tools_version} || \
-    podman build --file ./containers/Containerfile --build-arg okd_tools_version=${okd_tools_version} -t okd-tools:${okd_tools_version} .
+    # Remove older OKD tools version
+    rm -f ~/.local/bin/openshift-install
+    rm -f ~/.local/bin/oc
+    rm -f ~/.local/bin/kubectl
+
+    # Download OKD tools
+    curl -sSL https://github.com/openshift/okd/releases/download/${okd_tools_version}/openshift-install-linux-${okd_tools_version}.tar.gz -o openshift-install-linux-${okd_tools_version}.tar.gz >/dev/null
+    curl -sSL https://github.com/openshift/okd/releases/download/${okd_tools_version}/openshift-client-linux-${okd_tools_version}.tar.gz -o openshift-client-linux-${okd_tools_version}.tar.gz >/dev/null
+
+    # Install OKD tools
+    tar -zxf openshift-install-linux-${okd_tools_version}.tar.gz -C ~/.local/bin/ openshift-install
+    tar -zxf openshift-client-linux-${okd_tools_version}.tar.gz -C ~/.local/bin/ oc
+    tar -zxf openshift-client-linux-${okd_tools_version}.tar.gz -C ~/.local/bin/ kubectl
+
+    # Cleanup tars
+    rm -f openshift-install-linux-${okd_tools_version}.tar.gz
+    rm -f openshift-client-linux-${okd_tools_version}.tar.gz
 }
 
 generate_manifests() {
@@ -81,8 +93,8 @@ generate_manifests() {
     done
 
     # Generate manifests and create the ignition configs from that
-    podman run -it --hostname okd-tools -v ./:/workspace:Z okd-tools:${okd_tools_version} /bin/bash \
-        -c "cd /workspace; openshift-install create manifests --dir=terraform/generated-files; openshift-install create ignition-configs --dir=terraform/generated-files"
+    openshift-install create manifests --dir=terraform/generated-files
+    openshift-install create ignition-configs --dir=terraform/generated-files
 
     # Create a pod and serve the ignition files via Cloudflare tunnels 
     # so we can pull from it on startup. They're too large to fit in user-data.
@@ -258,12 +270,8 @@ check_requirement() {
 
 main() {
     # Check for required credentials
-    for v in SSH_KEY      \
-             HCLOUD_TOKEN  \
-             CLUSTER_NAME \
-             BASE_DOMAIN \
-             NUM_OKD_WORKERS \
-             NUM_OKD_CONTROL_PLANE; do
+    for v in HCLOUD_TOKEN  \
+             BASE_DOMAIN; do
         if [[ -z "${!v-}" ]]; then
             echo "You must set environment variable $v" >&2
             return 1
@@ -288,9 +296,6 @@ main() {
     # Download OKD tools if they do not exist
     download_okd_tools_if_not_exists
 
-    # Build OKD tools container if it does not exist
-    build_okd_tools_container_if_not_exists
-
     # Generate and serve the ignition configs
     generate_manifests
 
@@ -304,8 +309,7 @@ main() {
     # Wait for the bootstrap to complete
     echo -e "\nWaiting for bootstrap to complete.\n"
 
-    podman run -it --hostname okd-tools -v ./:/workspace:Z okd-tools:${okd_tools_version} /bin/bash \
-        -c "cd /workspace; openshift-install --dir=terraform/generated-files wait-for bootstrap-complete"
+    openshift-install --dir=terraform/generated-files wait-for bootstrap-complete
 
     # Remove bootstrap node and nginx/cloudflared containers as bootstrap is complete
     echo -e "\nRemoving bootstrap resources.\n"
@@ -317,22 +321,22 @@ main() {
     podman stop ignition-server-cloudflared && podman rm ignition-server-cloudflared
 
     # Set the KUBECONFIG so subsequent oc or kubectl commands can run
-    export KUBECONFIG=/workspace/terraform/generated-files/auth/kubeconfig
+    export KUBECONFIG=${PWD}/terraform/generated-files/auth/kubeconfig
 
-    # # Wait for CSRs to come in and approve them before moving on
-    # wait_and_approve_CSRs
+    # Wait for CSRs to come in and approve them before moving on
+    wait_and_approve_CSRs
 
-    # # Wait for the install to complete
-    # echo -e "\nWaiting for install to complete.\n"
-    # openshift-install --dir=generated-files  wait-for install-complete
+    # Wait for the install to complete
+    echo -e "\nWaiting for install to complete.\n"
+    openshift-install --dir=terraform/generated-files wait-for install-complete
 
-    # # Configure DO block storage driver
-    # # NOTE: this will store your API token in your cluster
-    # configure_DO_block_storage_driver
+    # Configure Hetzner cloud volume driver
+    # NOTE: this will store your API token in your cluster
+    configure_hetzner_cloud_volumes_driver
 
-    # # Configure the registry to use a separate volume created
-    # # by the DO block storage driver
-    # fixup_registry_storage
+    # Configure the registry to use a separate volume created
+    # by the Hetzner cloud volume driver
+    fixup_registry_storage
 }
 
 main $@
