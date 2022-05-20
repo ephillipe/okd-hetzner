@@ -321,11 +321,15 @@ main() {
     # Create the servers, load balancer, private network, firewall and
     # create DNS/RDNS records
     echo -e "\nCreating servers, load balancer, private network, firewall and DNS records.\n"
+
     terraform -chdir=./terraform apply \
         -auto-approve \
-        -var base_domain=${BASE_DOMAIN}
-        -var fedora_coreos_image_id=$(get_fedora_coreos_image_id) \
-        -var cloudflare_dns_zone_id=${CLOUDFLARE_ZONE_ID}
+        -var base_domain=${BASE_DOMAIN} \
+        -var cloudflare_dns_zone_id=${CLOUDFLARE_ZONE_ID} \
+        -var cluster_name=${CLUSTER_NAME} \
+        -var num_okd_workers=${NUM_OKD_WORKERS} \
+        -var num_okd_control_plane=${NUM_OKD_CONTROL_PLANE} \
+        -var fedora_coreos_image_id=$(get_fedora_coreos_image_id)
 
     # Wait for the bootstrap to complete
     echo -e "\nWaiting for bootstrap to complete.\n"

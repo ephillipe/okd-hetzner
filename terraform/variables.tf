@@ -1,7 +1,6 @@
 # Cluster name and domain
 variable "cluster_name" {
-  type    = string
-  default = "okd"
+  type = string
 }
 
 variable "base_domain" {
@@ -10,19 +9,22 @@ variable "base_domain" {
 
 # Hetzner SSH keys
 variable "hetzner_ssh_keys" {
-  type = list
-  default = [ "default" ]
+  type    = list(string)
+  default = ["default"]
 }
 
 # Number of workers and control planes
 variable "num_okd_workers" {
-  type    = number
-  default = 2
+  type = number
 }
 
 variable "num_okd_control_plane" {
-  type    = number
-  default = 3
+  type = number
+}
+
+# Server image
+variable "fedora_coreos_image_id" {
+  type = string
 }
 
 # Server types
@@ -75,11 +77,16 @@ variable "okd_private_subnetwork_ip_range" {
 
 # Load balancer
 variable "load_balancer_type" {
-  type = string
+  type    = string
   default = "lb11"
 }
 
 variable "load_balancer_location" {
-  type = string
+  type    = string
   default = "eu-central"
+}
+
+# DNS
+variable "cloudflare_dns_zone_id" {
+  type = string
 }

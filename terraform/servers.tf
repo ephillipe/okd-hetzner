@@ -19,14 +19,14 @@ resource "hcloud_server" "okd_bootstrap" {
   server_type = var.bootstrap_server_type
   image       = var.fedora_coreos_image_id
   location    = var.bootstrap_server_location
-  user_data   = data.local_file.bootstrap_ignition
+  user_data   = data.local_file.bootstrap_ignition.content
   ssh_keys    = var.hetzner_ssh_keys
   labels = {
     "cluster" = "${var.cluster_name}",
     "type"    = "control_plane"
   }
   network {
-    network_id = "${hcloud_network.okd.id}"
+    network_id = hcloud_network.okd.id
   }
 }
 
@@ -40,15 +40,15 @@ resource "hcloud_server" "okd_control_plane" {
   name        = "${var.cluster_name}-control-plane-${count.index}"
   server_type = var.bootstrap_server_type
   image       = var.fedora_coreos_image_id
-  location    = [for location in var.control_plane_server_location : "${location}"]
-  user_data   = data.local_file.control_plane_ignition
+  location    = element(var.control_plane_server_location.*, count.index)
+  user_data   = data.local_file.control_plane_ignition.content
   ssh_keys    = var.hetzner_ssh_keys
   labels = {
     "cluster" = "${var.cluster_name}",
     "type"    = "control_plane"
   }
   network {
-    network_id = "${hcloud_network.okd.id}"
+    network_id = hcloud_network.okd.id
   }
 }
 
@@ -63,13 +63,13 @@ resource "hcloud_server" "okd_worker" {
   server_type = var.bootstrap_server_type
   image       = var.fedora_coreos_image_id
   location    = var.worker_server_location
-  user_data   = data.local_file.control_plane_ignition
+  user_data   = data.local_file.control_plane_ignition.content
   ssh_keys    = var.hetzner_ssh_keys
   labels = {
     "cluster" = "${var.cluster_name}",
     "type"    = "worker"
   }
   network {
-    network_id = "${hcloud_network.okd.id}"
+    network_id = hcloud_network.okd.id
   }
 }
