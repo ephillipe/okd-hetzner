@@ -314,10 +314,16 @@ main() {
     # Generate and serve the ignition configs
     generate_manifests
 
+    # Init Terraform
+    echo -e "\nInitializing Terraform.\n"
+    terraform -chdir=./terraform init &> /dev/null
+
     # Create the servers, load balancer, private network, firewall and
     # create DNS/RDNS records
+    echo -e "\nCreating servers, load balancer, private network, firewall and DNS records.\n"
     terraform -chdir=./terraform apply \
         -auto-approve \
+        -var base_domain=${BASE_DOMAIN}
         -var fedora_coreos_image_id=$(get_fedora_coreos_image_id) \
         -var cloudflare_dns_zone_id=${CLOUDFLARE_ZONE_ID}
 
