@@ -112,10 +112,10 @@ generate_manifests() {
         -v ./terraform/generated-files/bootstrap.ign:/usr/share/nginx/html/bootstrap.ign:Z \
         -v ./terraform/generated-files/master.ign:/usr/share/nginx/html/master.ign:Z \
         -v ./terraform/generated-files/worker.ign:/usr/share/nginx/html/worker.ign:Z \
-        docker.io/library/nginx:1.21.6-alpine
+        docker.io/library/nginx:stable-alpine
     
     podman run -it -d --pod ignition-server --name ignition-server-cloudflared \
-        docker.io/cloudflare/cloudflared:2022.5.1 \
+        docker.io/cloudflare/cloudflared:latest \
         tunnel --no-autoupdate --url http://localhost:80
 
     # Allow nginx to read ignition file
@@ -139,21 +139,21 @@ generate_manifests() {
     cat templates/butane-bootstrap.yaml | \
         sed "s|BOOTSTRAP_SHA512|sha512-${bootstrap_sha256sum}|" | \
         sed "s|BOOTSTRAP_SOURCE_URL|${ignition_url}/bootstrap.ign|" | \
-        podman run --interactive --rm quay.io/coreos/butane:v0.14.0 \
+        podman run --interactive --rm quay.io/coreos/butane:release \
         > terraform/generated-files/bootstrap-processed.ign
 
     # Add tweaks to the control plane config
     cat templates/butane-control-plane.yaml | \
         sed "s|CONTROL_PLANE_SHA512|sha512-${control_plane_sha256sum}|" | \
         sed "s|CONTROL_PLANE_SOURCE_URL|${ignition_url}/master.ign|" | \
-        podman run --interactive --rm quay.io/coreos/butane:v0.14.0 \
+        podman run --interactive --rm quay.io/coreos/butane:release \
         > terraform/generated-files/control-plane-processed.ign
 
     # Add tweaks to the worker config
     cat templates/butane-worker.yaml | \
         sed "s|WORKER_SHA512|sha512-${worker_sha256sum}|" | \
         sed "s|WORKER_SOURCE_URL|${ignition_url}/worker.ign|" | \
-        podman run --interactive --rm quay.io/coreos/butane:v0.14.0 \
+        podman run --interactive --rm quay.io/coreos/butane:release \
         > terraform/generated-files/worker-processed.ign
 }
 
