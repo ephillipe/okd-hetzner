@@ -48,8 +48,7 @@ build {
   provisioner "shell" {
     inline = [
       "set -x",
-      "umount /mnt",
-      "poweroff"
+      "umount /mnt"
     ]
   }
 
