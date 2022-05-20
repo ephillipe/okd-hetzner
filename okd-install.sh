@@ -30,11 +30,11 @@ create_image_if_not_exists() {
     fi
 
     # Create the image with packer
-    packer init packer/fedora-coreos.pkr.hcl >/dev/null
+    packer init packer/fedora-coreos.pkr.hcl &> /dev/null
 
     packer build \
         -var fedora_coreos_version=${FEDORA_COREOS_VERSION} \
-        packer/fedora-coreos.pkr.hcl >/dev/null
+        packer/fedora-coreos.pkr.hcl &> /dev/null
 
     # Wait for the image to finish being created
     for x in {0..100}; do
@@ -52,9 +52,11 @@ create_image_if_not_exists() {
 download_okd_tools_if_not_exists() {
     echo -e "\nDownloading and installing OKD tools.\n"
 
-    if oc version | grep ${OKD_VERSION} >/dev/null; then
-        echo "Correct OKD tools version already exists. Skipping OKD tools download and installation."
-        return 0
+    if which oc &> /dev/null; then
+        if oc version | grep ${OKD_VERSION} &> /dev/null; then
+            echo "Correct OKD tools version already exists. Skipping OKD tools download and installation."
+            return 0
+        fi
     fi
 
     # Remove older OKD tools version
