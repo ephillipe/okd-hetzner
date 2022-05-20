@@ -128,7 +128,7 @@ generate_manifests() {
 
     # Wait for Cloudflare tunnel to be available
     for x in {0..100}; do
-        if curl -s -o /dev/null -I -w "%{http_code}" ${ignition_url}/bootstrap.ign | grep 200; then
+        if curl -s -o /dev/null -I -w "%{http_code}" ${ignition_url}/bootstrap.ign | grep 200 &> /dev/null; then
             break # Tunnel is available
         fi
         echo "Waiting for Cloudflare tunnel to become available..."
