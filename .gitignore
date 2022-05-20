@@ -3,5 +3,3 @@ terraform/.terraform
 terraform/.terraform*
 terraform/terraform.tfstate
 terraform/terraform.tfstate.*
-containers/openshift-install-linux-*.tar.gz
-containers/openshift-client-linux-*.tar.gz
