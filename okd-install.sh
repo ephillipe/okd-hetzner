@@ -124,6 +124,18 @@ generate_manifests() {
         > ./terraform/generated-files/worker-processed.ign
 }
 
+# prints a sequence of numbers to iterate over from 0 to N-1
+# for the number of control plane nodes
+control_plane_num_sequence() {
+    seq 0 $((NUM_OKD_CONTROL_PLANE-1))
+}
+
+# prints a sequence of numbers to iterate over from 0 to N-1
+# for the number of worker nodes
+worker_num_sequence() {
+    seq 0 $((NUM_OKD_WORKERS-1))
+}
+
 # https://github.com/digitalocean/csi-digitalocean
 configure_hetzner_cloud_volumes_driver() {
     echo -e "\nCreating Hetzner cloud volumes driver.\n"
@@ -189,6 +201,41 @@ spec:
 EOF
 }
 
+# https://docs.okd.io/4.10/installing/installing_bare_metal/installing-bare-metal.html#installation-approve-csrs_installing-bare-metal
+wait_and_approve_CSRs() {
+    echo -e "\nApprove CSRs if needed.\n"
+
+    # Some handy commands to run manually if needed
+    # oc get csr -o json | jq -r '.items[] | select(.spec.username == "system:node:okd-worker-0")'
+    # oc get csr -o json | jq -r '.items[] | select(.spec.username == "system:node:okd-worker-0").status'
+
+    # Wait for all requests for worker nodes to come in and approve them
+    while true; do
+        csrinfo=$(oc get csr -o json)
+        echo "Approving all pending CSRs and waiting for remaining requests.."
+        echo $csrinfo |                                              \
+            jq -r '.items[] | select(.status == {}).metadata.name' | \
+            xargs --no-run-if-empty oc adm certificate approve
+        sleep 10
+        csrinfo=$(oc get csr -o json) # refresh info
+        for num in $(worker_num_sequence); do
+            # If no CSR for this worker then continue
+            exists=$(echo $csrinfo | jq -r ".items[] | select(.spec.username == \"system:node:okd-worker-${num}\").metadata.name")
+            if [ ! $exists ]; then
+                echo "CSR not yet requested for okd-worker-${num}. Continuing."
+                continue 2 # continue the outer loop
+            fi
+            # If the CSR is not yet approved for this worker then continue
+            statusfield=$(echo $csrinfo | jq -r ".items[] | select(.spec.username == \"system:node:okd-worker-${num}\").status")
+            if [[ $statusfield == '{}' ]]; then
+                echo "CSR not yet approved for okd-worker-${num}. Continuing."
+                continue 2 # continue the outer loop
+            fi
+        done
+        break # all expected CSRs have been approved
+    done
+}
+
 which() {
     (alias; declare -f) | /usr/bin/which --read-alias --read-functions --show-tilde --show-dot $@
 }
@@ -244,4 +291,38 @@ main() {
     terraform -chdir=./terraform apply \
     -var fedora_coreos_image_id=$(get_fedora_coreos_image_id) \
     -var cloudflare_dns_zone_id=
+
+    # # Wait for the bootstrap to complete
+    # echo -e "\nWaiting for bootstrap to complete.\n"
+    # openshift-install --dir=generated-files  wait-for bootstrap-complete
+
+    # # remove bootstrap node and config space as bootstrap is complete
+    # echo -e "\nRemoving bootstrap resources.\n"
+    # doctl compute droplet delete bootstrap --force >/dev/null
+    # aws --endpoint-url $SPACES_ENDPOINT s3 rb $SPACES_BUCKET --force >/dev/null
+
+    # # Set the KUBECONFIG so subsequent oc or kubectl commands can run
+    # export KUBECONFIG=${PWD}/generated-files/auth/kubeconfig
+
+    # # Wait for CSRs to come in and approve them before moving on
+    # wait_and_approve_CSRs
+
+    # # Wait for the install to complete
+    # echo -e "\nWaiting for install to complete.\n"
+    # openshift-install --dir=generated-files  wait-for install-complete
+
+    # # Configure DO block storage driver
+    # # NOTE: this will store your API token in your cluster
+    # configure_DO_block_storage_driver
+
+    # # Configure the registry to use a separate volume created
+    # # by the DO block storage driver
+    # fixup_registry_storage
 }
+
+main $@
+if [ $? -ne 0 ]; then
+    exit 1
+else
+    exit 0
+fi
