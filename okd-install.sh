@@ -10,7 +10,7 @@ NUM_OKD_CONTROL_PLANE=3
 REGISTRY_VOLUME_SIZE='50'
 
 # Set tools and OS versions
-OKD_TOOLS_VERSION=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/openshift/okd/tags | jq -j -r .[0].name)
+OKD_VERSION=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/openshift/okd/tags | jq -j -r .[0].name)
 FEDORA_COREOS_VERSION=$(curl -s https://builds.coreos.fedoraproject.org/streams/stable.json | jq -r '.architectures.x86_64.artifacts.metal.release')
 HCLOUD_CSI_VERSION=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/hetznercloud/csi-driver/tags | jq -j -r .[0].name)
 
@@ -51,7 +51,7 @@ create_image_if_not_exists() {
 download_okd_tools_if_not_exists() {
     echo -e "\nDownloading and installing OKD tools.\n"
 
-    if oc version | grep ${OKD_TOOLS_VERSION} >/dev/null; then
+    if oc version | grep ${OKD_VERSION} >/dev/null; then
         echo "Correct OKD tools version already exists. Skipping OKD tools download and installation."
         return 0
     fi
@@ -62,17 +62,17 @@ download_okd_tools_if_not_exists() {
     rm -f ~/.local/bin/kubectl
 
     # Download OKD tools
-    curl -sSL https://github.com/openshift/okd/releases/download/${OKD_TOOLS_VERSION}/openshift-install-linux-${OKD_TOOLS_VERSION}.tar.gz -o openshift-install-linux-${OKD_TOOLS_VERSION}.tar.gz >/dev/null
-    curl -sSL https://github.com/openshift/okd/releases/download/${OKD_TOOLS_VERSION}/openshift-client-linux-${OKD_TOOLS_VERSION}.tar.gz -o openshift-client-linux-${OKD_TOOLS_VERSION}.tar.gz >/dev/null
+    curl -sSL https://github.com/openshift/okd/releases/download/${OKD_VERSION}/openshift-install-linux-${OKD_VERSION}.tar.gz -o openshift-install-linux-${OKD_VERSION}.tar.gz >/dev/null
+    curl -sSL https://github.com/openshift/okd/releases/download/${OKD_VERSION}/openshift-client-linux-${OKD_VERSION}.tar.gz -o openshift-client-linux-${OKD_VERSION}.tar.gz >/dev/null
 
     # Install OKD tools
-    tar -zxf openshift-install-linux-${OKD_TOOLS_VERSION}.tar.gz -C ~/.local/bin/ openshift-install
-    tar -zxf openshift-client-linux-${OKD_TOOLS_VERSION}.tar.gz -C ~/.local/bin/ oc
-    tar -zxf openshift-client-linux-${OKD_TOOLS_VERSION}.tar.gz -C ~/.local/bin/ kubectl
+    tar -zxf openshift-install-linux-${OKD_VERSION}.tar.gz -C ~/.local/bin/ openshift-install
+    tar -zxf openshift-client-linux-${OKD_VERSION}.tar.gz -C ~/.local/bin/ oc
+    tar -zxf openshift-client-linux-${OKD_VERSION}.tar.gz -C ~/.local/bin/ kubectl
 
     # Cleanup tars
-    rm -f openshift-install-linux-${OKD_TOOLS_VERSION}.tar.gz
-    rm -f openshift-client-linux-${OKD_TOOLS_VERSION}.tar.gz
+    rm -f openshift-install-linux-${OKD_VERSION}.tar.gz
+    rm -f openshift-client-linux-${OKD_VERSION}.tar.gz
 }
 
 generate_manifests() {
@@ -281,7 +281,6 @@ main() {
     # Check for required software
     reqs=(
         jq
-        hcloud
         podman
         packer
         terraform

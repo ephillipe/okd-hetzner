@@ -6,7 +6,6 @@ export BASE_DOMAIN="example.com"
 
 Requirements:
 - jq
-- hcloud
 - podman
 - packer
 - terraform
