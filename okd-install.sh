@@ -30,10 +30,11 @@ create_image_if_not_exists() {
     fi
 
     # Create the image with packer
-    packer init ./packer/fedora-coreos.pkr.hcl >/dev/null
+    packer init packer/fedora-coreos.pkr.hcl >/dev/null
 
-    packer build ./packer/fedora-coreos.pkr.hcl \
-        -var 'fedora_coreos_version=${FEDORA_COREOS_VERSION}' >/dev/null
+    packer build \
+        -var fedora_coreos_version=${FEDORA_COREOS_VERSION} \
+        packer/fedora-coreos.pkr.hcl >/dev/null
 
     # Wait for the image to finish being created
     for x in {0..100}; do
@@ -271,7 +272,11 @@ check_requirement() {
 main() {
     # Check for required credentials
     for v in HCLOUD_TOKEN  \
-             BASE_DOMAIN; do
+             BASE_DOMAIN \
+             CLOUDFLARE_ZONE_ID \
+             CLOUDFLARE_EMAIL \
+             CLOUDFLARE_API_KEY \
+             CLOUDFLARE_API_TOKEN; do
         if [[ -z "${!v-}" ]]; then
             echo "You must set environment variable $v" >&2
             return 1
@@ -303,7 +308,7 @@ main() {
     terraform -chdir=./terraform apply \
         -auto-approve \
         -var fedora_coreos_image_id=$(get_fedora_coreos_image_id) \
-        -var cloudflare_dns_zone_id=
+        -var cloudflare_dns_zone_id=${CLOUDFLARE_ZONE_ID}
 
     # Wait for the bootstrap to complete
     echo -e "\nWaiting for bootstrap to complete.\n"
