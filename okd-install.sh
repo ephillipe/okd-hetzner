@@ -4,7 +4,7 @@ set -eu -o pipefail
 # Set variables
 SSH_KEY=$(cat ~/.ssh/id_ed25519.pub)
 CLUSTER_NAME="okd"
-DOMAIN="${CLUSTER_NAME}.${BASE_DOMAIN}"
+OKD_DOMAIN="${CLUSTER_NAME}.${BASE_DOMAIN}"
 NUM_OKD_WORKERS=2
 NUM_OKD_CONTROL_PLANE=3
 REGISTRY_VOLUME_SIZE='50'
@@ -205,7 +205,7 @@ fixup_registry_storage() {
 
     # Update the image-registry deployment to not have a rolling update strategy
     # because it won't work with a RWO backing device.
-    # https://docs.openshift.com/container-platform/4.10/applications/deployments/deployment-strategies.html
+    # https://docs.openshift.com/container-platform/latest/applications/deployments/deployment-strategies.html
     PATCH='
     spec:
       strategy:
@@ -237,7 +237,7 @@ spec:
 EOF
 }
 
-# https://docs.okd.io/4.10/installing/installing_bare_metal/installing-bare-metal.html#installation-approve-csrs_installing-bare-metal
+# https://docs.okd.io/latest/installing/installing_bare_metal/installing-bare-metal.html#installation-approve-csrs_installing-bare-metal
 wait_and_approve_CSRs() {
     echo -e "\nApprove CSRs if needed.\n"
 
@@ -328,9 +328,9 @@ main() {
 
     terraform -chdir=./terraform apply \
         -auto-approve \
-        -var base_domain=${BASE_DOMAIN} \
-        -var cloudflare_dns_zone_id=${CLOUDFLARE_ZONE_ID} \
         -var cluster_name=${CLUSTER_NAME} \
+        -var okd_domain=${OKD_DOMAIN} \
+        -var cloudflare_dns_zone_id=${CLOUDFLARE_ZONE_ID} \
         -var num_okd_workers=${NUM_OKD_WORKERS} \
         -var num_okd_control_plane=${NUM_OKD_CONTROL_PLANE} \
         -var fedora_coreos_image_id=$(get_fedora_coreos_image_id)

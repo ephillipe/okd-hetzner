@@ -3,7 +3,7 @@ variable "cluster_name" {
   type = string
 }
 
-variable "base_domain" {
+variable "okd_domain" {
   type = string
 }
 

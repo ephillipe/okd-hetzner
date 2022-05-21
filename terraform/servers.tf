@@ -1,13 +1,6 @@
+# Bootstrap
 data "local_file" "bootstrap_ignition" {
   filename = "${path.module}/generated-files/bootstrap-processed.ign"
-}
-
-data "local_file" "control_plane_ignition" {
-  filename = "${path.module}/generated-files/control-plane-processed.ign"
-}
-
-data "local_file" "worker_ignition" {
-  filename = "${path.module}/generated-files/worker-processed.ign"
 }
 
 resource "hcloud_server" "okd_bootstrap" {
@@ -30,6 +23,17 @@ resource "hcloud_server" "okd_bootstrap" {
   }
 }
 
+resource "hcloud_rdns" "bootstrap" {
+  load_balancer_id = hcloud_server.okd_bootstrap.id
+  ip_address       = hcloud_server.okd_bootstrap.ipv4_address
+  dns_ptr          = "bootstrap.${var.okd_domain}"
+}
+
+# Control Plane
+data "local_file" "control_plane_ignition" {
+  filename = "${path.module}/generated-files/control-plane-processed.ign"
+}
+
 resource "hcloud_server" "okd_control_plane" {
   depends_on = [
     hcloud_network_subnet.okd
@@ -37,7 +41,7 @@ resource "hcloud_server" "okd_control_plane" {
 
   count = var.num_okd_control_plane
 
-  name        = "${var.cluster_name}-control-plane-${count.index}"
+  name        = "${var.cluster_name}-control-${count.index}"
   server_type = var.bootstrap_server_type
   image       = var.fedora_coreos_image_id
   location    = element(var.control_plane_server_location.*, count.index)
@@ -50,6 +54,19 @@ resource "hcloud_server" "okd_control_plane" {
   network {
     network_id = hcloud_network.okd.id
   }
+}
+
+resource "hcloud_rdns" "control_plane" {
+  count = var.num_okd_control_plane
+
+  server_id  = hcloud_server.okd_control_plane[count.index].id
+  ip_address = hcloud_server.okd_control_plane[count.index].ipv4_address
+  dns_ptr    = "${var.cluster_name}-control-${count.index}.${var.okd_domain}"
+}
+
+# Workers
+data "local_file" "worker_ignition" {
+  filename = "${path.module}/generated-files/worker-processed.ign"
 }
 
 resource "hcloud_server" "okd_worker" {
@@ -72,4 +89,12 @@ resource "hcloud_server" "okd_worker" {
   network {
     network_id = hcloud_network.okd.id
   }
+}
+
+resource "hcloud_rdns" "workers" {
+  count = var.num_okd_workers
+
+  server_id  = hcloud_server.okd_worker[count.index].id
+  ip_address = hcloud_server.okd_worker[count.index].ipv4_address
+  dns_ptr    = "${var.cluster_name}-worker-${count.index}.${var.okd_domain}"
 }

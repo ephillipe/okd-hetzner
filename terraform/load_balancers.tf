@@ -22,6 +22,18 @@ resource "hcloud_load_balancer_network" "control_plane" {
   enable_public_interface = true
 }
 
+resource "hcloud_rdns" "kubernetes_api" {
+  load_balancer_id = hcloud_load_balancer.control_plane.id
+  ip_address       = hcloud_load_balancer.control_plane.ipv4
+  dns_ptr          = "api.${var.okd_domain}"
+}
+
+resource "hcloud_rdns" "kubernetes_api_int" {
+  load_balancer_id = hcloud_load_balancer.control_plane.id
+  ip_address       = hcloud_load_balancer.control_plane.ipv4
+  dns_ptr          = "api-int.${var.okd_domain}"
+}
+
 resource "hcloud_load_balancer_service" "kubernetes_api" {
   load_balancer_id = hcloud_load_balancer.control_plane.id
   protocol         = "tcp"

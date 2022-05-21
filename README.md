@@ -11,12 +11,23 @@ The deployment defaults to a 5 node cluster:
 
 ### Set environment variables:
 ```
+# Hetzner Cloud API token
 export HCLOUD_TOKEN=""
-export BASE_DOMAIN="example.com"
+
+# Base domain. eg. example.com
+export BASE_DOMAIN=""
+
+# Cloudflare Zone ID
 export CLOUDFLARE_ZONE_ID=""
-export CLOUDFLARE_EMAIL="user@example.com"
-export CLOUDFLARE_API_KEY="cloudflare_global_api_key"
-export CLOUDFLARE_API_TOKEN="cloudflare_api_token"
+
+# Cloudlfare email. eg. user@example.com
+export CLOUDFLARE_EMAIL=""
+
+# Cloudflare Global API KEY
+export CLOUDFLARE_API_KEY=""
+
+# Cloudflare API token
+export CLOUDFLARE_API_TOKEN=""
 ```
 
 #### How to get Cloudflare credentials
