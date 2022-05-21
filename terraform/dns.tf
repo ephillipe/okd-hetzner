@@ -59,30 +59,30 @@ resource "cloudflare_record" "dns_a_workers" {
 }
 
 # etcd
-resource "cloudflare_record" "dns_a_etcd" {
-  count = var.num_okd_control_plane
+# resource "cloudflare_record" "dns_a_etcd" {
+#   count = var.num_okd_control_plane
 
-  zone_id = var.cloudflare_dns_zone_id
-  name    = "etcd-${count.index}.${var.okd_domain}"
-  value   = hcloud_server.okd_control_plane[count.index].ipv4_address
-  type    = "A"
-  ttl     = 120
-}
+#   zone_id = var.cloudflare_dns_zone_id
+#   name    = "etcd-${count.index}.${var.okd_domain}"
+#   value   = hcloud_server.okd_control_plane[count.index].ipv4_address
+#   type    = "A"
+#   ttl     = 120
+# }
 
-resource "cloudflare_record" "dns_srv_etcd" {
-  count = var.num_okd_control_plane
+# resource "cloudflare_record" "dns_srv_etcd" {
+#   count = var.num_okd_control_plane
 
-  zone_id = var.cloudflare_dns_zone_id
-  name    = "_etcd-server-ssl._tcp.${var.okd_domain}"
-  type    = "SRV"
+#   zone_id = var.cloudflare_dns_zone_id
+#   name    = "_etcd-server-ssl._tcp.${var.okd_domain}"
+#   type    = "SRV"
 
-  data {
-    service  = "_etcd-server-ssl"
-    proto    = "_tcp"
-    name     = "_etcd-server-ssl._tcp.${var.okd_domain}"
-    priority = 0
-    weight   = 0
-    port     = 2380
-    target   = "etcd-${count.index}.${var.okd_domain}"
-  }
-}
+#   data {
+#     service  = "_etcd-server-ssl"
+#     proto    = "_tcp"
+#     name     = "_etcd-server-ssl._tcp.${var.okd_domain}"
+#     priority = 0
+#     weight   = 0
+#     port     = 2380
+#     target   = "etcd-${count.index}.${var.okd_domain}"
+#   }
+# }
