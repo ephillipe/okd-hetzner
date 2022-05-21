@@ -19,12 +19,6 @@ systemd:
       WantedBy=multi-user.target
 storage:
   files:
-    - path: /etc/resolv.conf
-      mode: 0644
-      contents:
-        inline: |
-          nameserver 1.1.1.1
-          nameserver 1.0.0.1
     - path: /usr/local/bin/run-hostnamectl
       mode: 0755
       contents:
