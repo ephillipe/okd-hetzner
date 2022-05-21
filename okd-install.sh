@@ -110,32 +110,33 @@ generate_manifests() {
     control_plane_sha256sum=$(sha512sum terraform/generated-files/master.ign | cut -d ' ' -f 1)
     worker_sha256sum=$(sha512sum terraform/generated-files/worker.ign | cut -d ' ' -f 1)
 
-    podman pod create -n ignition-server
+    echo -e "\nServing ignition files via Cludflare tunnel.\n"
+    podman pod create -n ignition-server &> /dev/null
     
     podman run -it -d --pod ignition-server --name ignition-server-nginx \
         -v ./terraform/generated-files/bootstrap.ign:/usr/share/nginx/html/bootstrap.ign:Z \
         -v ./terraform/generated-files/master.ign:/usr/share/nginx/html/master.ign:Z \
         -v ./terraform/generated-files/worker.ign:/usr/share/nginx/html/worker.ign:Z \
-        docker.io/library/nginx:stable-alpine
+        docker.io/library/nginx:stable-alpine &> /dev/null
     
     podman run -it -d --pod ignition-server --name ignition-server-cloudflared \
         docker.io/cloudflare/cloudflared:latest \
-        tunnel --no-autoupdate --url http://localhost:80
+        tunnel --no-autoupdate --url http://localhost:80 &> /dev/null
 
     # Allow nginx to read ignition files
     chmod 0644 terraform/generated-files/{bootstrap,master,worker}.ign
 
-    # Get the ignition domain from cloudflared container logs
-    ignition_url=$(podman logs ignition-server-cloudflared | grep -Eo "https://[a-zA-Z0-9./?=_%:-]*trycloudflare.com")
-
     # Wait for Cloudflare tunnel to be available
     for x in {0..100}; do
-        if curl -s -o /dev/null -I -w "%{http_code}" ${ignition_url}/bootstrap.ign | grep 200 &> /dev/null; then
+        if curl -s -o /dev/null -I -w "%{http_code}" $(podman logs ignition-server-cloudflared | grep -Eo "https://[a-zA-Z0-9./?=_%:-]*trycloudflare.com")/bootstrap.ign | grep 200 &> /dev/null; then
             break # Tunnel is available
         fi
         echo "Waiting for Cloudflare tunnel to become available..."
         sleep 10
     done
+
+    # Get the ignition domain from cloudflared container logs
+    ignition_url=$(podman logs ignition-server-cloudflared | grep -Eo "https://[a-zA-Z0-9./?=_%:-]*trycloudflare.com")
 
     # Add tweaks to the bootstrap ignition and a pointer to the remote bootstrap
     cat templates/butane-bootstrap.yaml | \
