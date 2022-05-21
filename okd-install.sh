@@ -122,10 +122,8 @@ generate_manifests() {
         docker.io/cloudflare/cloudflared:latest \
         tunnel --no-autoupdate --url http://localhost:80
 
-    # Allow nginx to read ignition file
-    chmod 0644 terraform/generated-files/bootstrap.ign
-    chmod 0644 terraform/generated-files/master.ign
-    chmod 0644 terraform/generated-files/worker.ign
+    # Allow nginx to read ignition files
+    chmod 0644 terraform/generated-files/{bootstrap,master,worker}.ign
 
     # Get the ignition domain from cloudflared container logs
     ignition_url=$(podman logs ignition-server-cloudflared | grep -Eo "https://[a-zA-Z0-9./?=_%:-]*trycloudflare.com")
