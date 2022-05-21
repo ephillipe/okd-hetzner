@@ -1,5 +1,7 @@
 # BASEDOMAIN, CLUSTERNAME, NUM_OKD_WORKERS, NUM_OKD_CONTROL_PLANE, SSH_KEY
 # will be substituted with runtime values.
+# Configuration parameters:
+# https://docs.okd.io/latest/installing/installing_bare_metal/installing-bare-metal.html#installation-configuration-parameters_installing-bare-metal
 apiVersion: v1
 baseDomain: BASE_DOMAIN
 metadata:
@@ -12,6 +14,13 @@ controlPlane:
   hyperthreading: Enabled
   name: master 
   replicas: NUM_OKD_CONTROL_PLANE
+networking:
+  clusterNetwork:
+  - cidr: 10.128.0.0/14
+    hostPrefix: 23
+  networkType: OVNKubernetes
+  serviceNetwork:
+   - 172.30.0.0/16
 platform:
   none: {}
 pullSecret: '{"auths":{"fake":{"auth":"aWQ6cGFzcwo="}}}'
