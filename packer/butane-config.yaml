@@ -4,3 +4,30 @@ ignition:
   config:
     merge:
       - source: http://169.254.169.254/hetzner/v1/userdata
+systemd:
+  units:
+  - name: sethostname.service
+    enabled: true
+    contents: |   
+      [Unit]
+      After=NetworkManager-wait-online.service
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/run-hostnamectl
+      RemainAfterExit=yes
+      [Install]
+      WantedBy=multi-user.target
+storage:
+  files:
+    - path: /etc/resolv.conf
+      mode: 0644
+      contents:
+        inline: |
+          nameserver 1.1.1.1
+          nameserver 1.0.0.1
+    - path: /usr/local/bin/run-hostnamectl
+      mode: 0755
+      contents:
+        inline: |
+          #!/usr/bin/bash
+          hostnamectl set-hostname $(curl -s http://169.254.169.254/metadata/v1/hostname)

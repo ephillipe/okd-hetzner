@@ -17,7 +17,7 @@ HCLOUD_CSI_VERSION=$(curl -s -H "Accept: application/vnd.github.v3+json" https:/
 # Returns a string representing the image ID for a given label.
 # Returns empty string if none exists
 get_fedora_coreos_image_id() {
-    hcloud image list -o json | jq -r ".[] | select(.labels.os == \"fedora-coreos\").id"
+    hcloud image list -o json | jq -r ".[] | select((.labels.os == \"fedora-coreos\") and (.labels.release == \"${FEDORA_COREOS_VERSION}\")).id"
 }
 
 create_image_if_not_exists() {
