@@ -62,8 +62,7 @@ download_okd_tools_if_not_exists() {
 
     # Install OKD tools
     tar -zxf openshift-install-linux-${OKD_VERSION}.tar.gz -C ~/.local/bin/ openshift-install
-    tar -zxf openshift-client-linux-${OKD_VERSION}.tar.gz -C ~/.local/bin/ oc
-    tar -zxf openshift-client-linux-${OKD_VERSION}.tar.gz -C ~/.local/bin/ kubectl
+    tar -zxf openshift-client-linux-${OKD_VERSION}.tar.gz -C ~/.local/bin/ {oc,kubectl}
 
     # Cleanup tars
     rm -f openshift-install-linux-${OKD_VERSION}.tar.gz
@@ -99,7 +98,7 @@ generate_manifests() {
     worker_sha512sum=$(sha512sum terraform/generated-files/worker.ign | cut -d ' ' -f 1)
 
     echo -e "\nServing ignition files via Cludflare tunnel.\n"
-    # Ensure that pod is not already running
+    # Remove ignition-server pod if it's already running
     podman pod rm --force --ignore ignition-server &> /dev/null
 
     # Create pod
@@ -168,7 +167,7 @@ worker_num_sequence() {
     seq 0 $((NUM_OKD_WORKERS-1))
 }
 
-# https://github.com/digitalocean/csi-digitalocean
+# https://github.com/hetznercloud/csi-driver
 configure_hetzner_cloud_volumes_driver() {
     echo -e "\nCreating Hetzner cloud volumes driver.\n"
     # Create the secret that contains the Hetzner token for volume creation
@@ -228,7 +227,7 @@ spec:
   resources:
     requests:
       storage: ${REGISTRY_VOLUME_SIZE}Gi
-  storageClassName: do-block-storage
+  storageClassName: hcloud-volumes
 EOF
 }
 

@@ -14,11 +14,13 @@ The deployment defaults to a 5 node cluster with 2 load balancers:
 
 ## Usage
 
-### Install the required dependencies:
-- jq
-- podman
-- packer
-- terraform
+### Host requirements:
+- Linux 64-bit
+- Applications:
+  - jq
+  - podman
+  - packer
+  - terraform
 
 ### Set environment variables:
 ```
