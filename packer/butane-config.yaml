@@ -17,6 +17,19 @@ systemd:
       RemainAfterExit=yes
       [Install]
       WantedBy=multi-user.target
+  - name: wesher.service
+    enabled: true
+    contents: |   
+      [Unit]
+      Description=wesher - wireguard mesh builder
+      After=network-online.target sethostname.service
+      [Service]
+      EnvironmentFile=-/etc/default/wesher
+      ExecStart=/usr/local/sbin/wesher
+      Restart=on-failure
+      Type=simple
+      [Install]
+      WantedBy=multi-user.target
 storage:
   files:
     - path: /usr/local/bin/run-hostnamectl
@@ -25,3 +38,20 @@ storage:
         inline: |
           #!/usr/bin/bash
           hostnamectl set-hostname $(curl -s http://169.254.169.254/hetzner/v1/metadata/hostname).OKD_DOMAIN
+    - path: /usr/local/sbin/wesher
+      mode: 0755
+      contents:
+        source: https://github.com/gjpin/wesher/releases/download/v0.2.7/wesher
+
+
+# /etc/default/wesher
+# WESHER_INTERFACE="wgokd"
+# WESHER_CLUSTER_KEY=""
+# WESHER_JOIN=""
+# WESHER_CLUSTER_PORT="7946"
+# WESHER_WIREGUARD_PORT="51820"
+# WESHER_OVERLAY_NET="10.0.0.0/8"
+
+
+# Create cluster key:
+# openssl rand -base64 32
