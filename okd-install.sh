@@ -333,6 +333,10 @@ main() {
         check_requirement $req
     done
 
+    # Init Terraform
+    echo -e "\nInitializing Terraform.\n"
+    terraform -chdir=./terraform init &> /dev/null
+
     # Create Fedora CoreOS image
     create_image_if_not_exists
 
@@ -344,10 +348,6 @@ main() {
 
     # Generate and serve the ignition configs
     generate_manifests
-
-    # Init Terraform
-    echo -e "\nInitializing Terraform.\n"
-    terraform -chdir=./terraform init &> /dev/null
 
     # Create the servers, load balancer, firewall and DNS/RDNS records
     echo -e "\nCreating servers, load balancer, firewall and DNS records.\n"
