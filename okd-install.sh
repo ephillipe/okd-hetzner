@@ -29,6 +29,10 @@ create_image_if_not_exists() {
         return 0
     fi
 
+    # Create ignition file
+    podman run --interactive --rm quay.io/coreos/butane:release \
+        < packer/config.yaml > packer/config.ign
+
     # Create the image with packer
     packer init packer/fedora-coreos.pkr.hcl &> /dev/null
 

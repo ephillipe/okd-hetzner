@@ -1,12 +1,1 @@
-{
-    "ignition": {
-        "config": {
-            "merge": [
-                {
-                    "source": "http://169.254.169.254/hetzner/v1/userdata"
-                }
-            ]
-        },
-        "version": "3.3.0"
-    }
-}
+{"ignition":{"config":{"merge":[{"source":"http://169.254.169.254/hetzner/v1/userdata2"}]},"version":"3.3.0"}}
