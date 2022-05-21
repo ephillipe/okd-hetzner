@@ -111,10 +111,13 @@ generate_manifests() {
     worker_sha256sum=$(sha512sum terraform/generated-files/worker.ign | cut -d ' ' -f 1)
 
     echo -e "\nServing ignition files via Cludflare tunnel.\n"
+    # Ensure that pod is not already running
     podman pod rm --force --ignore ignition-server &> /dev/null
 
+    # Create pod
     podman pod create -n ignition-server &> /dev/null
     
+    # Pull and run nginx
     podman pull docker.io/library/nginx:stable-alpine &> /dev/null
     podman run -it -d --pod ignition-server --name ignition-server-nginx \
         -v ./terraform/generated-files/bootstrap.ign:/usr/share/nginx/html/bootstrap.ign:Z \
@@ -122,6 +125,7 @@ generate_manifests() {
         -v ./terraform/generated-files/worker.ign:/usr/share/nginx/html/worker.ign:Z \
         docker.io/library/nginx:stable-alpine &> /dev/null
     
+    # Pull and run cloudflared
     podman pull docker.io/cloudflare/cloudflared:latest &> /dev/null
     podman run -it -d --pod ignition-server --name ignition-server-cloudflared \
         docker.io/cloudflare/cloudflared:latest \
