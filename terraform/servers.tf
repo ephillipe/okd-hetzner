@@ -8,7 +8,7 @@ resource "hcloud_server" "okd_bootstrap" {
     hcloud_network_subnet.okd
   ]
 
-  name        = "${var.cluster_name}-bootstrap.${var.okd_domain}"
+  name        = "bootstrap.${var.okd_domain}"
   server_type = var.bootstrap_server_type
   image       = var.fedora_coreos_image_id
   location    = var.bootstrap_server_location
@@ -26,7 +26,7 @@ resource "hcloud_server" "okd_bootstrap" {
 resource "hcloud_rdns" "bootstrap" {
   server_id  = hcloud_server.okd_bootstrap.id
   ip_address = hcloud_server.okd_bootstrap.ipv4_address
-  dns_ptr    = "${var.cluster_name}-bootstrap.${var.okd_domain}"
+  dns_ptr    = "bootstrap.${var.okd_domain}"
 }
 
 # Control Plane
