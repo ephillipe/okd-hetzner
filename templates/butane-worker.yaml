@@ -5,4 +5,4 @@ ignition:
     merge:
       - source: WORKER_SOURCE_URL
         verification:
-          hash: WORKER_SHA512
+          hash: sha512-WORKER_SHA512

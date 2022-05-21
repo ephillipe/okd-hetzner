@@ -30,8 +30,10 @@ create_image_if_not_exists() {
     fi
 
     # Create ignition file
-    podman run --interactive --rm quay.io/coreos/butane:release \
-        < packer/butane-config.yaml > packer/config.ign
+    cat packer/butane-config.yaml | \
+        sed "s|OKD_DOMAIN|${OKD_DOMAIN}|" | \
+        podman run --interactive --rm quay.io/coreos/butane:release \
+        > packer/config.ign
 
     # Create the image with packer
     packer init packer/fedora-coreos.pkr.hcl &> /dev/null
@@ -52,9 +54,7 @@ download_okd_tools_if_not_exists() {
     fi
 
     # Remove older OKD tools version
-    rm -f ~/.local/bin/openshift-install
-    rm -f ~/.local/bin/oc
-    rm -f ~/.local/bin/kubectl
+    rm -f ~/.local/bin/{openshift-install,oc,kubectl}
 
     # Download OKD tools
     curl -sSL https://github.com/openshift/okd/releases/download/${OKD_VERSION}/openshift-install-linux-${OKD_VERSION}.tar.gz -o openshift-install-linux-${OKD_VERSION}.tar.gz >/dev/null
@@ -94,9 +94,9 @@ generate_manifests() {
 
     # Create a pod and serve the ignition files via Cloudflare tunnels 
     # so we can pull from it on startup. They're too large to fit in user-data.
-    bootstrap_sha256sum=$(sha512sum terraform/generated-files/bootstrap.ign | cut -d ' ' -f 1)
-    control_plane_sha256sum=$(sha512sum terraform/generated-files/master.ign | cut -d ' ' -f 1)
-    worker_sha256sum=$(sha512sum terraform/generated-files/worker.ign | cut -d ' ' -f 1)
+    bootstrap_sha512sum=$(sha512sum terraform/generated-files/bootstrap.ign | cut -d ' ' -f 1)
+    control_plane_sha512sum=$(sha512sum terraform/generated-files/master.ign | cut -d ' ' -f 1)
+    worker_sha512sum=$(sha512sum terraform/generated-files/worker.ign | cut -d ' ' -f 1)
 
     echo -e "\nServing ignition files via Cludflare tunnel.\n"
     # Ensure that pod is not already running
@@ -136,21 +136,21 @@ generate_manifests() {
 
     # Add tweaks to the bootstrap ignition and a pointer to the remote bootstrap
     cat templates/butane-bootstrap.yaml | \
-        sed "s|BOOTSTRAP_SHA512|sha512-${bootstrap_sha256sum}|" | \
+        sed "s|BOOTSTRAP_SHA512|${bootstrap_sha512sum}|" | \
         sed "s|BOOTSTRAP_SOURCE_URL|${ignition_url}/bootstrap.ign|" | \
         podman run --interactive --rm quay.io/coreos/butane:release \
         > terraform/generated-files/bootstrap-processed.ign
 
     # Add tweaks to the control plane config
     cat templates/butane-control-plane.yaml | \
-        sed "s|CONTROL_PLANE_SHA512|sha512-${control_plane_sha256sum}|" | \
+        sed "s|CONTROL_PLANE_SHA512|${control_plane_sha512sum}|" | \
         sed "s|CONTROL_PLANE_SOURCE_URL|${ignition_url}/master.ign|" | \
         podman run --interactive --rm quay.io/coreos/butane:release \
         > terraform/generated-files/control-plane-processed.ign
 
     # Add tweaks to the worker config
     cat templates/butane-worker.yaml | \
-        sed "s|WORKER_SHA512|sha512-${worker_sha256sum}|" | \
+        sed "s|WORKER_SHA512|${worker_sha512sum}|" | \
         sed "s|WORKER_SOURCE_URL|${ignition_url}/worker.ign|" | \
         podman run --interactive --rm quay.io/coreos/butane:release \
         > terraform/generated-files/worker-processed.ign

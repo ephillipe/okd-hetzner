@@ -5,4 +5,4 @@ ignition:
     merge:
       - source: BOOTSTRAP_SOURCE_URL
         verification:
-          hash: BOOTSTRAP_SHA512
+          hash: sha512-BOOTSTRAP_SHA512
