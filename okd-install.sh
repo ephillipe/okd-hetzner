@@ -338,7 +338,15 @@ main() {
     echo -e "\nRemoving bootstrap resources.\n"
     terraform -chdir=./terraform destroy \
         -auto-approve \
-        --target hcloud_server.okd_bootstrap
+        --target hcloud_server.okd_bootstrap \
+        --target hcloud_rdns.bootstrap \
+        --target cloudflare_record.dns_a_bootstrap \
+        -var cluster_name=${CLUSTER_NAME} \
+        -var okd_domain=${OKD_DOMAIN} \
+        -var cloudflare_dns_zone_id=${CLOUDFLARE_ZONE_ID} \
+        -var num_okd_workers=${NUM_OKD_WORKERS} \
+        -var num_okd_control_plane=${NUM_OKD_CONTROL_PLANE} \
+        -var fedora_coreos_image_id=$(get_fedora_coreos_image_id)
 
     podman pod rm --force --ignore ignition-server
 
