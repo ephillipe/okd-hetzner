@@ -24,9 +24,9 @@ resource "hcloud_server" "okd_bootstrap" {
 }
 
 resource "hcloud_rdns" "bootstrap" {
-  load_balancer_id = hcloud_server.okd_bootstrap.id
-  ip_address       = hcloud_server.okd_bootstrap.ipv4_address
-  dns_ptr          = "bootstrap.${var.okd_domain}"
+  server_id  = hcloud_server.okd_bootstrap.id
+  ip_address = hcloud_server.okd_bootstrap.ipv4_address
+  dns_ptr    = "bootstrap.${var.okd_domain}"
 }
 
 # Control Plane
@@ -44,7 +44,7 @@ resource "hcloud_server" "okd_control_plane" {
   name        = "${var.cluster_name}-control-${count.index}"
   server_type = var.bootstrap_server_type
   image       = var.fedora_coreos_image_id
-  location    = element(var.control_plane_server_location.*, count.index)
+  location    = var.control_plane_server_location[count.index]
   user_data   = data.local_file.control_plane_ignition.content
   ssh_keys    = var.hetzner_ssh_keys
   labels = {
