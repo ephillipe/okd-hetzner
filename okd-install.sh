@@ -113,12 +113,14 @@ generate_manifests() {
     echo -e "\nServing ignition files via Cludflare tunnel.\n"
     podman pod create -n ignition-server &> /dev/null
     
+    podman pull docker.io/library/nginx:stable-alpine &> /dev/null
     podman run -it -d --pod ignition-server --name ignition-server-nginx \
         -v ./terraform/generated-files/bootstrap.ign:/usr/share/nginx/html/bootstrap.ign:Z \
         -v ./terraform/generated-files/master.ign:/usr/share/nginx/html/master.ign:Z \
         -v ./terraform/generated-files/worker.ign:/usr/share/nginx/html/worker.ign:Z \
         docker.io/library/nginx:stable-alpine &> /dev/null
     
+    podman pull docker.io/cloudflare/cloudflared:latest &> /dev/null
     podman run -it -d --pod ignition-server --name ignition-server-cloudflared \
         docker.io/cloudflare/cloudflared:latest \
         tunnel --no-autoupdate --url http://localhost:80 &> /dev/null
@@ -345,7 +347,7 @@ main() {
         -auto-approve \
         --target hcloud_server.okd_bootstrap
 
-    podman rm --force ignition-server-{nginx,cloudflared}
+    podman pod rm --force ignition-server
 
     # Set the KUBECONFIG so subsequent oc or kubectl commands can run
     export KUBECONFIG=${PWD}/terraform/generated-files/auth/kubeconfig
