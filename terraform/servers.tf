@@ -80,7 +80,7 @@ resource "hcloud_server" "okd_worker" {
   server_type = var.bootstrap_server_type
   image       = var.fedora_coreos_image_id
   location    = var.worker_server_location
-  user_data   = data.local_file.control_plane_ignition.content
+  user_data   = data.local_file.worker_ignition.content
   ssh_keys    = var.hetzner_ssh_keys
   labels = {
     "cluster" = "${var.cluster_name}",
