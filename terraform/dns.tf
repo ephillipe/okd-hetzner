@@ -41,7 +41,7 @@ resource "cloudflare_record" "dns_a_control_plane" {
   count = var.num_okd_control_plane
 
   zone_id = var.cloudflare_dns_zone_id
-  name    = "${var.cluster_name}-control-${count.index}.${var.okd_domain}"
+  name    = "control-${count.index}.${var.okd_domain}"
   value   = hcloud_server.okd_control_plane[count.index].ipv4_address
   type    = "A"
   ttl     = 120
@@ -52,7 +52,7 @@ resource "cloudflare_record" "dns_a_workers" {
   count = var.num_okd_workers
 
   zone_id = var.cloudflare_dns_zone_id
-  name    = "${var.cluster_name}-worker-${count.index}.${var.okd_domain}"
+  name    = "worker-${count.index}.${var.okd_domain}"
   value   = hcloud_server.okd_worker[count.index].ipv4_address
   type    = "A"
   ttl     = 120
