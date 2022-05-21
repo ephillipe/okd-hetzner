@@ -345,8 +345,7 @@ main() {
         -auto-approve \
         --target hcloud_server.okd_bootstrap
 
-    podman stop ignition-server-nginx && podman rm ignition-server-nginx
-    podman stop ignition-server-cloudflared && podman rm ignition-server-cloudflared
+    podman rm --force ignition-server-{nginx,cloudflared}
 
     # Set the KUBECONFIG so subsequent oc or kubectl commands can run
     export KUBECONFIG=${PWD}/terraform/generated-files/auth/kubeconfig
