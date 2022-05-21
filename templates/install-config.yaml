@@ -14,13 +14,9 @@ controlPlane:
   hyperthreading: Enabled
   name: master 
   replicas: NUM_OKD_CONTROL_PLANE
-networking:
-  clusterNetwork:
-  - cidr: 10.128.0.0/14
-    hostPrefix: 23
-  networkType: OVNKubernetes
-  serviceNetwork:
-   - 172.30.0.0/16
+# networking:
+#   machineNetwork:
+#   - cidr: 10.0.0.0/8
 platform:
   none: {}
 pullSecret: '{"auths":{"fake":{"auth":"aWQ6cGFzcwo="}}}'

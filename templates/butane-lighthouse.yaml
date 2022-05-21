@@ -1,11 +1,12 @@
 variant: fcos
 version: 1.4.0
-ignition:
-  config:
-    merge:
-      - source: CONTROL_PLANE_SOURCE_URL
-        verification:
-          hash: sha512-CONTROL_PLANE_SHA512
+passwd:
+  users:
+    - name: core
+      ssh_authorized_keys:
+        - SSH_KEY
+      groups:
+        - wheel
 storage:
   files:
     - path: /etc/default/wesher
@@ -18,7 +19,6 @@ storage:
         inline: |
           WESHER_INTERFACE="wgokd"
           WESHER_CLUSTER_KEY="WIREGUARD_CLUSTER_KEY"
-          WESHER_JOIN="LIGHTHOUSE_SERVER_IP"
           WESHER_CLUSTER_PORT="7946"
           WESHER_WIREGUARD_PORT="51820"
           WESHER_OVERLAY_NET="10.0.0.0/8"

@@ -20,6 +20,10 @@ get_fedora_coreos_image_id() {
     hcloud image list -o json | jq -r ".[] | select((.labels.os == \"fedora-coreos\") and (.labels.release == \"${FEDORA_COREOS_VERSION}\")).id"
 }
 
+get_lighthouse_server_ip() {
+    terraform -chdir=./terraform output -raw lighthouse_server_ip
+}
+
 create_image_if_not_exists() {
     echo -e "\nCreating custom Fedora CoreOS image.\n"
 
@@ -69,11 +73,31 @@ download_okd_tools_if_not_exists() {
     rm -f openshift-client-linux-${OKD_VERSION}.tar.gz
 }
 
-generate_manifests() {
-    echo -e "\nGenerating manifests/configs for install.\n"
+create_lighthouse_server() {
+    echo -e "\nCreating lighthouse server.\n"
 
     # Clear out old generated files
     rm -rf terraform/generated-files/ && mkdir terraform/generated-files
+
+    cat templates/butane-lighthouse.yaml | \
+        sed "s|SSH_KEY|${SSH_KEY}|" | \
+        sed "s|WIREGUARD_CLUSTER_KEY|${WIREGUARD_CLUSTER_KEY}|" | \
+        podman run --interactive --rm quay.io/coreos/butane:release \
+        > terraform/generated-files/lighthouse-processed.ign
+
+    terraform -chdir=./terraform apply \
+        -auto-approve \
+        -var cluster_name=${CLUSTER_NAME} \
+        -var okd_domain=${OKD_DOMAIN} \
+        -var cloudflare_dns_zone_id=${CLOUDFLARE_ZONE_ID} \
+        -var num_okd_workers=${NUM_OKD_WORKERS} \
+        -var num_okd_control_plane=${NUM_OKD_CONTROL_PLANE} \
+        -var fedora_coreos_image_id=$(get_fedora_coreos_image_id) \
+        -target hcloud_server.okd_lighthouse
+}
+
+generate_manifests() {
+    echo -e "\nGenerating manifests/configs for install.\n"
 
     # Copy install-config in place (remove comments) and replace tokens
     # in the template with the actual values we want to use.
@@ -137,6 +161,8 @@ generate_manifests() {
     cat templates/butane-bootstrap.yaml | \
         sed "s|BOOTSTRAP_SHA512|${bootstrap_sha512sum}|" | \
         sed "s|BOOTSTRAP_SOURCE_URL|${ignition_url}/bootstrap.ign|" | \
+        sed "s|WIREGUARD_CLUSTER_KEY|${WIREGUARD_CLUSTER_KEY}|" | \
+        sed "s|LIGHTHOUSE_SERVER_IP|$(get_lighthouse_server_ip)|" | \
         podman run --interactive --rm quay.io/coreos/butane:release \
         > terraform/generated-files/bootstrap-processed.ign
 
@@ -144,6 +170,8 @@ generate_manifests() {
     cat templates/butane-control-plane.yaml | \
         sed "s|CONTROL_PLANE_SHA512|${control_plane_sha512sum}|" | \
         sed "s|CONTROL_PLANE_SOURCE_URL|${ignition_url}/master.ign|" | \
+        sed "s|WIREGUARD_CLUSTER_KEY|${WIREGUARD_CLUSTER_KEY}|" | \
+        sed "s|LIGHTHOUSE_SERVER_IP|$(get_lighthouse_server_ip)|" | \
         podman run --interactive --rm quay.io/coreos/butane:release \
         > terraform/generated-files/control-plane-processed.ign
 
@@ -151,6 +179,8 @@ generate_manifests() {
     cat templates/butane-worker.yaml | \
         sed "s|WORKER_SHA512|${worker_sha512sum}|" | \
         sed "s|WORKER_SOURCE_URL|${ignition_url}/worker.ign|" | \
+        sed "s|WIREGUARD_CLUSTER_KEY|${WIREGUARD_CLUSTER_KEY}|" | \
+        sed "s|LIGHTHOUSE_SERVER_IP|$(get_lighthouse_server_ip)|" | \
         podman run --interactive --rm quay.io/coreos/butane:release \
         > terraform/generated-files/worker-processed.ign
 }
@@ -309,6 +339,9 @@ main() {
     # Download OKD tools if they do not exist
     download_okd_tools_if_not_exists
 
+    # Create lighthouse server
+    create_lighthouse_server
+
     # Generate and serve the ignition configs
     generate_manifests
 
@@ -316,9 +349,8 @@ main() {
     echo -e "\nInitializing Terraform.\n"
     terraform -chdir=./terraform init &> /dev/null
 
-    # Create the servers, load balancer, private network, firewall and
-    # create DNS/RDNS records
-    echo -e "\nCreating servers, load balancer, private network, firewall and DNS records.\n"
+    # Create the servers, load balancer, firewall and DNS/RDNS records
+    echo -e "\nCreating servers, load balancer, firewall and DNS records.\n"
 
     terraform -chdir=./terraform apply \
         -auto-approve \
@@ -338,15 +370,15 @@ main() {
     echo -e "\nRemoving bootstrap resources.\n"
     terraform -chdir=./terraform destroy \
         -auto-approve \
-        --target hcloud_server.okd_bootstrap \
-        --target hcloud_rdns.bootstrap \
-        --target cloudflare_record.dns_a_bootstrap \
         -var cluster_name=${CLUSTER_NAME} \
         -var okd_domain=${OKD_DOMAIN} \
         -var cloudflare_dns_zone_id=${CLOUDFLARE_ZONE_ID} \
         -var num_okd_workers=${NUM_OKD_WORKERS} \
         -var num_okd_control_plane=${NUM_OKD_CONTROL_PLANE} \
-        -var fedora_coreos_image_id=$(get_fedora_coreos_image_id)
+        -var fedora_coreos_image_id=$(get_fedora_coreos_image_id) \
+        -target hcloud_server.okd_bootstrap \
+        -target hcloud_rdns.bootstrap \
+        -target cloudflare_record.dns_a_bootstrap
 
     podman pod rm --force --ignore ignition-server
 

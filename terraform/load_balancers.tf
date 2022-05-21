@@ -1,6 +1,6 @@
 # Control plane
 resource "hcloud_load_balancer" "control_plane" {
-  name               = "${var.cluster_name}-control-plane"
+  name               = "${var.cluster_name}-control"
   load_balancer_type = var.load_balancer_type
   network_zone       = var.load_balancer_location
   algorithm {
@@ -10,16 +10,6 @@ resource "hcloud_load_balancer" "control_plane" {
     "cluster" = "${var.cluster_name}",
     "type"    = "control_plane"
   }
-}
-
-resource "hcloud_load_balancer_network" "control_plane" {
-  depends_on = [
-    hcloud_network_subnet.okd
-  ]
-
-  load_balancer_id        = hcloud_load_balancer.control_plane.id
-  network_id              = hcloud_network.okd.id
-  enable_public_interface = true
 }
 
 resource "hcloud_rdns" "kubernetes_api" {
@@ -82,16 +72,6 @@ resource "hcloud_load_balancer" "workers" {
     "cluster" = "${var.cluster_name}",
     "type"    = "worker"
   }
-}
-
-resource "hcloud_load_balancer_network" "workers" {
-  depends_on = [
-    hcloud_network_subnet.okd
-  ]
-
-  load_balancer_id        = hcloud_load_balancer.workers.id
-  network_id              = hcloud_network.okd.id
-  enable_public_interface = true
 }
 
 resource "hcloud_load_balancer_service" "ingress_http" {

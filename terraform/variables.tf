@@ -59,22 +59,6 @@ variable "worker_server_location" {
   default = "nbg1"
 }
 
-# Private network and subnetwork
-variable "okd_private_network_ip_range" {
-  type    = string
-  default = "10.0.0.0/8"
-}
-
-variable "okd_private_subnetwork_zone" {
-  type    = string
-  default = "eu-central"
-}
-
-variable "okd_private_subnetwork_ip_range" {
-  type    = string
-  default = "10.0.0.0/16"
-}
-
 # Load balancer
 variable "load_balancer_type" {
   type    = string

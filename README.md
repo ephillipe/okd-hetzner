@@ -41,6 +41,10 @@ export CLOUDFLARE_API_KEY=""
 
 # Cloudflare API token
 export CLOUDFLARE_API_TOKEN=""
+
+# Wireguard's pre-shared key
+# Can be generated with `openssl rand -base64 32`
+export WIREGUARD_CLUSTER_KEY=""
 ```
 
 #### How to get Cloudflare API token

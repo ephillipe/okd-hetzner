@@ -6,3 +6,19 @@ ignition:
       - source: BOOTSTRAP_SOURCE_URL
         verification:
           hash: sha512-BOOTSTRAP_SHA512
+storage:
+  files:
+    - path: /etc/default/wesher
+      mode: 0700
+      user:
+        id: 0
+      group:
+        id: 0
+      contents:
+        inline: |
+          WESHER_INTERFACE="wgokd"
+          WESHER_CLUSTER_KEY="WIREGUARD_CLUSTER_KEY"
+          WESHER_JOIN="LIGHTHOUSE_SERVER_IP"
+          WESHER_CLUSTER_PORT="7946"
+          WESHER_WIREGUARD_PORT="51820"
+          WESHER_OVERLAY_NET="10.0.0.0/8"
