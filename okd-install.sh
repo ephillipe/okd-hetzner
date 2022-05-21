@@ -111,6 +111,8 @@ generate_manifests() {
     worker_sha256sum=$(sha512sum terraform/generated-files/worker.ign | cut -d ' ' -f 1)
 
     echo -e "\nServing ignition files via Cludflare tunnel.\n"
+    podman pod rm --force --ignore ignition-server &> /dev/null
+
     podman pod create -n ignition-server &> /dev/null
     
     podman pull docker.io/library/nginx:stable-alpine &> /dev/null
@@ -347,7 +349,7 @@ main() {
         -auto-approve \
         --target hcloud_server.okd_bootstrap
 
-    podman pod rm --force ignition-server
+    podman pod rm --force --ignore ignition-server
 
     # Set the KUBECONFIG so subsequent oc or kubectl commands can run
     export KUBECONFIG=${PWD}/terraform/generated-files/auth/kubeconfig
