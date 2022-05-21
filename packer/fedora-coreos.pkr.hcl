@@ -26,6 +26,7 @@ source "hcloud" "fedora-coreos" {
   rescue          = "linux64"
   token           = var.hcloud_token
   snapshot_labels = { os = "fedora-coreos", release = "${var.fedora_coreos_version}" }
+  user_data       = "#cloud-config\nvendor_data: {'enabled': false}\n"
 }
 
 build {
@@ -34,7 +35,8 @@ build {
   provisioner "shell" {
     inline = [
       "set -x",
-      "curl -sL https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/${var.fedora_coreos_version}/x86_64/fedora-coreos-${var.fedora_coreos_version}-metal.x86_64.raw.xz | xz -d | dd of=/dev/sda",
+      "curl -sL https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/${var.fedora_coreos_version}/x86_64/fedora-coreos-${var.fedora_coreos_version}-qemu.x86_64.qcow2.xz | unxz > fedora-coreos-${var.fedora_coreos_version}-qemu.x86_64.qcow2",
+      "qemu-img convert -f qcow2 -O raw fedora-coreos-${var.fedora_coreos_version}-qemu.x86_64.qcow2 /dev/sda",
       "mount /dev/sda3 /mnt",
       "mkdir /mnt/ignition"
     ]
@@ -51,5 +53,4 @@ build {
       "umount /mnt"
     ]
   }
-
 }

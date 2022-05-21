@@ -11,7 +11,7 @@ REGISTRY_VOLUME_SIZE='50'
 
 # Set tools and OS versions
 OKD_VERSION=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/openshift/okd/tags | jq -j -r .[0].name)
-FEDORA_COREOS_VERSION=$(curl -s https://builds.coreos.fedoraproject.org/streams/stable.json | jq -r '.architectures.x86_64.artifacts.metal.release')
+FEDORA_COREOS_VERSION=$(curl -s https://builds.coreos.fedoraproject.org/streams/stable.json | jq -r '.architectures.x86_64.artifacts.qemu.release')
 HCLOUD_CSI_VERSION=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/hetznercloud/csi-driver/tags | jq -j -r .[0].name)
 
 # Returns a string representing the image ID for a given label.
@@ -39,18 +39,6 @@ create_image_if_not_exists() {
     packer build \
         -var fedora_coreos_version=${FEDORA_COREOS_VERSION} \
         packer/fedora-coreos.pkr.hcl &> /dev/null
-
-    # Wait for the image to finish being created
-    for x in {0..100}; do
-        if [ "$(get_fedora_coreos_image_id)" != "" ]; then
-            return 0 # We're done
-        fi
-        echo "Waiting for image to finish creation..."
-        sleep 10
-    done
-
-    echo "Image never finished being created." >&2
-    return 1
 }
 
 download_okd_tools_if_not_exists() {
