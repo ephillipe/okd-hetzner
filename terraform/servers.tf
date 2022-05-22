@@ -16,6 +16,14 @@ resource "hcloud_server" "okd_loadbalancer" {
   }
 }
 
+resource "hcloud_rdns" "loadbalancer" {
+  for_each = toset(["api", "api-int"])
+
+  server_id  = hcloud_server.okd_loadbalancer.id
+  ip_address = hcloud_server.okd_loadbalancer.ipv4_address
+  dns_ptr    = "${each.key}.${var.okd_domain}"
+}
+
 # Bootstrap
 data "local_file" "bootstrap_ignition" {
   filename = "${path.module}/generated-files/bootstrap-processed.ign"

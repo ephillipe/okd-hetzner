@@ -5,7 +5,7 @@
 resource "cloudflare_record" "dns_a_api" {
   zone_id = var.cloudflare_dns_zone_id
   name    = "api.${var.okd_domain}"
-  value   = hcloud_load_balancer.control_plane.ipv4
+  value   = hcloud_server.okd_loadbalancer.ipv4_address
   type    = "A"
   ttl     = 120
 }
@@ -13,7 +13,7 @@ resource "cloudflare_record" "dns_a_api" {
 resource "cloudflare_record" "dns_a_api_int" {
   zone_id = var.cloudflare_dns_zone_id
   name    = "api-int.${var.okd_domain}"
-  value   = hcloud_load_balancer.control_plane.ipv4
+  value   = hcloud_server.okd_loadbalancer.ipv4_address
   type    = "A"
   ttl     = 120
 }
@@ -22,7 +22,7 @@ resource "cloudflare_record" "dns_a_api_int" {
 resource "cloudflare_record" "dns_a_apps" {
   zone_id = var.cloudflare_dns_zone_id
   name    = "*.apps.${var.okd_domain}"
-  value   = hcloud_load_balancer.workers.ipv4
+  value   = hcloud_server.okd_loadbalancer.ipv4_address
   type    = "A"
   ttl     = 120
 }
