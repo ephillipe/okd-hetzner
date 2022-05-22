@@ -44,4 +44,4 @@ storage:
     - path: /usr/local/sbin/wesher
       mode: 0755
       contents:
-        source: https://github.com/costela/wesher/releases/download/v0.2.6/wesher-amd64
+        source: https://github.com/gjpin/wesher/releases/download/v0.2.7/wesher
