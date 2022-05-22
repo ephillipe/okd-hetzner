@@ -76,12 +76,12 @@ download_okd_tools_if_not_exists() {
 create_loadbalancer_server() {
     echo -e "\nCreating load balancer server.\n"
 
-    # Clear out old generated files
-    rm -rf terraform/generated-files/ && mkdir terraform/generated-files
-
     cat templates/butane-loadbalancer.yaml | \
         sed "s|SSH_KEY|${SSH_KEY}|" | \
         sed "s|WIREGUARD_CLUSTER_KEY|${WIREGUARD_CLUSTER_KEY}|" | \
+        sed "s|OKD_DOMAIN|${OKD_DOMAIN}|" | \
+        sed "s|CLUSTER_NAME|${CLUSTER_NAME}|" | \
+        sed "s|HAPROXY_STATS_PASSWORD|${HAPROXY_STATS_PASSWORD}|" | \
         podman run --interactive --rm quay.io/coreos/butane:release \
         > terraform/generated-files/loadbalancer-processed.ign
 
@@ -309,13 +309,15 @@ check_requirement() {
 }
 
 main() {
-    # Check for required credentials
+    # Check for required environment variables
     for v in HCLOUD_TOKEN  \
              BASE_DOMAIN \
              CLOUDFLARE_ZONE_ID \
              CLOUDFLARE_EMAIL \
              CLOUDFLARE_API_KEY \
-             CLOUDFLARE_API_TOKEN; do
+             CLOUDFLARE_API_TOKEN \
+             WIREGUARD_CLUSTER_KEY \
+             HAPROXY_STATS_PASSWORD; do
         if [[ -z "${!v-}" ]]; then
             echo "You must set environment variable $v" >&2
             return 1
@@ -332,6 +334,9 @@ main() {
     for req in ${reqs[@]}; do
         check_requirement $req
     done
+
+    # Clear out old generated files
+    rm -rf terraform/generated-files/ && mkdir terraform/generated-files
 
     # Init Terraform
     echo -e "\nInitializing Terraform.\n"

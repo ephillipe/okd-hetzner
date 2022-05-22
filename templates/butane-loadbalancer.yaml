@@ -74,32 +74,32 @@ storage:
             stats hide-version
             stats refresh 30s
             stats show-node
-            stats show-desc Stats for ocp4 cluster 
-            stats auth admin:ocp4
+            stats show-desc Stats for CLUSTER_NAME cluster 
+            stats auth admin:HAPROXY_STATS_PASSWORD
             stats uri /stats
           listen api-server-6443 
             bind *:6443
             mode tcp
-            server bootstrap bootstrap.ocp4.example.com:6443 check inter 1s backup 
-            server master0 master0.ocp4.example.com:6443 check inter 1s
-            server master1 master1.ocp4.example.com:6443 check inter 1s
-            server master2 master2.ocp4.example.com:6443 check inter 1s
+            server bootstrap bootstrap.OKD_DOMAIN:6443 check inter 1s backup 
+            server CLUSTER_NAME-control-0 control-0.OKD_DOMAIN:6443 check inter 1s
+            server CLUSTER_NAME-control-1 control-1.OKD_DOMAIN:6443 check inter 1s
+            server CLUSTER_NAME-control-2 control-2.OKD_DOMAIN:6443 check inter 1s
           listen machine-config-server-22623 
             bind *:22623
             mode tcp
-            server bootstrap bootstrap.ocp4.example.com:22623 check inter 1s backup 
-            server master0 master0.ocp4.example.com:22623 check inter 1s
-            server master1 master1.ocp4.example.com:22623 check inter 1s
-            server master2 master2.ocp4.example.com:22623 check inter 1s
+            server bootstrap bootstrap.OKD_DOMAIN:22623 check inter 1s backup 
+            server CLUSTER_NAME-control-0 control-0.OKD_DOMAIN:22623 check inter 1s
+            server CLUSTER_NAME-control-1 control-1.OKD_DOMAIN:22623 check inter 1s
+            server CLUSTER_NAME-control-2 control-2.OKD_DOMAIN:22623 check inter 1s
           listen ingress-router-443 
             bind *:443
             mode tcp
             balance source
-            server worker0 worker0.ocp4.example.com:443 check inter 1s
-            server worker1 worker1.ocp4.example.com:443 check inter 1s
+            server CLUSTER_NAME-worker-0 worker-0.OKD_DOMAIN:443 check inter 1s
+            server CLUSTER_NAME-worker-1 worker-1.OKD_DOMAIN:443 check inter 1s
           listen ingress-router-80 
             bind *:80
             mode tcp
             balance source
-            server worker0 worker0.ocp4.example.com:80 check inter 1s
-            server worker1 worker1.ocp4.example.com:80 check inter 1s
+            server CLUSTER_NAME-worker-0 worker-0.OKD_DOMAIN:80 check inter 1s
+            server CLUSTER_NAME-worker-1 worker-1.OKD_DOMAIN:80 check inter 1s

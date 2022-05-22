@@ -44,6 +44,9 @@ export CLOUDFLARE_API_TOKEN=""
 # Wireguard's pre-shared key
 # Can be generated with `openssl rand -base64 32`
 export WIREGUARD_CLUSTER_KEY=""
+
+# HAProxy stats password
+export HAPROXY_STATS_PASSWORD=""
 ```
 
 #### How to get Cloudflare API token
