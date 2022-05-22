@@ -97,26 +97,26 @@ storage:
             bind *:6443
             mode tcp
             server bootstrap bootstrap.OKD_DOMAIN:6443 check inter 1s backup resolvers mydns
-            server CLUSTER_NAME-control-0 control0.OKD_DOMAIN:6443 check inter 1s resolvers mydns
-            server CLUSTER_NAME-control-1 control1.OKD_DOMAIN:6443 check inter 1s resolvers mydns
-            server CLUSTER_NAME-control-2 control2.OKD_DOMAIN:6443 check inter 1s resolvers mydns
+            server CLUSTER_NAME-control-0 control-0.OKD_DOMAIN:6443 check inter 1s resolvers mydns
+            server CLUSTER_NAME-control-1 control-1.OKD_DOMAIN:6443 check inter 1s resolvers mydns
+            server CLUSTER_NAME-control-2 control-2.OKD_DOMAIN:6443 check inter 1s resolvers mydns
           listen machine-config-server-22623 
             bind *:22623
             mode tcp
             server bootstrap bootstrap.OKD_DOMAIN:22623 check inter 1s backup resolvers mydns
-            server CLUSTER_NAME-control-0 control0.OKD_DOMAIN:22623 check inter 1s resolvers mydns
-            server CLUSTER_NAME-control-1 control1.OKD_DOMAIN:22623 check inter 1s resolvers mydns
-            server CLUSTER_NAME-control-2 control2.OKD_DOMAIN:22623 check inter 1s resolvers mydns
+            server CLUSTER_NAME-control-0 control-0.OKD_DOMAIN:22623 check inter 1s resolvers mydns
+            server CLUSTER_NAME-control-1 control-1.OKD_DOMAIN:22623 check inter 1s resolvers mydns
+            server CLUSTER_NAME-control-2 control-2.OKD_DOMAIN:22623 check inter 1s resolvers mydns
           listen ingress-router-443 
             bind *:443
             mode tcp
             balance source
-            server CLUSTER_NAME-worker-0 worker0.OKD_DOMAIN:443 check inter 1s resolvers mydns
-            server CLUSTER_NAME-worker-1 worker1.OKD_DOMAIN:443 check inter 1s resolvers mydns
+            server CLUSTER_NAME-worker-0 worker-0.OKD_DOMAIN:443 check inter 1s resolvers mydns
+            server CLUSTER_NAME-worker-1 worker-1.OKD_DOMAIN:443 check inter 1s resolvers mydns
           listen ingress-router-80 
             bind *:80
             mode tcp
             balance source
-            server CLUSTER_NAME-worker-0 worker0.OKD_DOMAIN:80 check inter 1s resolvers mydns
-            server CLUSTER_NAME-worker-1 worker1.OKD_DOMAIN:80 check inter 1s resolvers mydns
+            server CLUSTER_NAME-worker-0 worker-0.OKD_DOMAIN:80 check inter 1s resolvers mydns
+            server CLUSTER_NAME-worker-1 worker-1.OKD_DOMAIN:80 check inter 1s resolvers mydns
           

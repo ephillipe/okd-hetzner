@@ -2,15 +2,24 @@ Based on the great projects: [slauger/hcloud-okd4](https://github.com/slauger/hc
 
 ## Architecture
 
-The deployment defaults to a 5 node cluster with 2 load balancers:
+The deployment defaults to a 5 node cluster with 1 load balancer:
 
 - 3x Master servers (CX41)
 - 2x Worker servers (CPX41)
 - 1x Load balancer server (CPX11)
-  - Running HAProxy
+  - Runs HAProxy
   - Also acts as 'lighthouse' for Wireguard cluster
 - 1x Bootstrap server (CX41)
   - Deleted after cluster is bootstrapped
+
+Highlights:
+- Fedora CoreOS image created with Packer.
+- Wireguard cluster with overlay mesh network CIDR of 10.0.0.0/16 created with wesher.
+  - Does not use Hetzner's private network.
+- Serves ignition files through Cloudflare tunnels.
+  - Does not create a server with the sole purpose of serving these files.
+- DNS records through Cloudflare.
+- Configures Hetzner's cloud volumes driver.
 
 ## Usage
 
