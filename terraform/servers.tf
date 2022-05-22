@@ -1,18 +1,18 @@
-# Lighthouse
-data "local_file" "lighthouse_ignition" {
-  filename = "${path.module}/generated-files/lighthouse-processed.ign"
+# Load balancer
+data "local_file" "loadbalancer_ignition" {
+  filename = "${path.module}/generated-files/loadbalancer-processed.ign"
 }
 
-resource "hcloud_server" "okd_lighthouse" {
-  name        = "${var.cluster_name}-lighthouse"
-  server_type = "cx21"
+resource "hcloud_server" "okd_loadbalancer" {
+  name        = "${var.cluster_name}-loadbalancer"
+  server_type = var.loadbalancer_server_type
   image       = var.fedora_coreos_image_id
-  location    = "nbg1"
-  user_data   = data.local_file.lighthouse_ignition.content
+  location    = var.loadbalancer_server_location
+  user_data   = data.local_file.loadbalancer_ignition.content
   ssh_keys    = var.hetzner_ssh_keys
   labels = {
     "cluster" = "${var.cluster_name}",
-    "type"    = "lighthouse"
+    "type"    = "loadbalancer"
   }
 }
 

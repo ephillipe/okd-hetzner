@@ -1,3 +1,3 @@
-output "lighthouse_server_ip" {
-  value = hcloud_server.okd_lighthouse.ipv4_address
+output "loadbalancer_server_ip" {
+  value = hcloud_server.okd_loadbalancer.ipv4_address
 }

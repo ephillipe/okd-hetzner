@@ -16,10 +16,20 @@ variable "hetzner_ssh_keys" {
 # Number of workers and control planes
 variable "num_okd_workers" {
   type = number
+
+  validation {
+    condition     = var.num_okd_workers >= 2
+    error_message = "Number of worker servers must be 2 or higher."
+  }
 }
 
 variable "num_okd_control_plane" {
   type = number
+
+  validation {
+    condition     = var.num_okd_control_plane == 3 || var.num_okd_control_plane == 5
+    error_message = "Number of control plane servers must be 3 or 5."
+  }
 }
 
 # Server image
@@ -28,14 +38,19 @@ variable "fedora_coreos_image_id" {
 }
 
 # Server types
+variable "loadbalancer_server_type" {
+  type    = string
+  default = "cpx11"
+}
+
 variable "bootstrap_server_type" {
   type    = string
-  default = "cpx41"
+  default = "cx41"
 }
 
 variable "control_plane_server_type" {
   type    = string
-  default = "cpx41"
+  default = "cx41"
 }
 
 variable "worker_server_type" {
@@ -44,6 +59,11 @@ variable "worker_server_type" {
 }
 
 # Server locations
+variable "loadbalancer_server_location" {
+  type    = string
+  default = "nbg1"
+}
+
 variable "bootstrap_server_location" {
   type    = string
   default = "nbg1"
@@ -51,23 +71,12 @@ variable "bootstrap_server_location" {
 
 variable "control_plane_server_location" {
   type    = list(string)
-  default = ["nbg1", "hel1", "fsn1"]
+  default = ["nbg1", "hel1", "fsn1", "nbg1", "hel1"]
 }
 
 variable "worker_server_location" {
   type    = string
   default = "nbg1"
-}
-
-# Load balancer
-variable "load_balancer_type" {
-  type    = string
-  default = "lb11"
-}
-
-variable "load_balancer_location" {
-  type    = string
-  default = "eu-central"
 }
 
 # DNS

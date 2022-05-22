@@ -20,8 +20,8 @@ get_fedora_coreos_image_id() {
     hcloud image list -o json | jq -r ".[] | select((.labels.os == \"fedora-coreos\") and (.labels.release == \"${FEDORA_COREOS_VERSION}\")).id"
 }
 
-get_lighthouse_server_ip() {
-    terraform -chdir=./terraform output -raw lighthouse_server_ip
+get_loadbalancer_server_ip() {
+    terraform -chdir=./terraform output -raw loadbalancer_server_ip
 }
 
 create_image_if_not_exists() {
@@ -73,17 +73,17 @@ download_okd_tools_if_not_exists() {
     rm -f openshift-client-linux-${OKD_VERSION}.tar.gz
 }
 
-create_lighthouse_server() {
-    echo -e "\nCreating lighthouse server.\n"
+create_loadbalancer_server() {
+    echo -e "\nCreating load balancer server.\n"
 
     # Clear out old generated files
     rm -rf terraform/generated-files/ && mkdir terraform/generated-files
 
-    cat templates/butane-lighthouse.yaml | \
+    cat templates/butane-loadbalancer.yaml | \
         sed "s|SSH_KEY|${SSH_KEY}|" | \
         sed "s|WIREGUARD_CLUSTER_KEY|${WIREGUARD_CLUSTER_KEY}|" | \
         podman run --interactive --rm quay.io/coreos/butane:release \
-        > terraform/generated-files/lighthouse-processed.ign
+        > terraform/generated-files/loadbalancer-processed.ign
 
     terraform -chdir=./terraform apply \
         -auto-approve \
@@ -93,7 +93,7 @@ create_lighthouse_server() {
         -var num_okd_workers=${NUM_OKD_WORKERS} \
         -var num_okd_control_plane=${NUM_OKD_CONTROL_PLANE} \
         -var fedora_coreos_image_id=$(get_fedora_coreos_image_id) \
-        -target hcloud_server.okd_lighthouse
+        -target hcloud_server.okd_loadbalancer
 }
 
 generate_manifests() {
@@ -162,7 +162,7 @@ generate_manifests() {
         sed "s|BOOTSTRAP_SHA512|${bootstrap_sha512sum}|" | \
         sed "s|BOOTSTRAP_SOURCE_URL|${ignition_url}/bootstrap.ign|" | \
         sed "s|WIREGUARD_CLUSTER_KEY|${WIREGUARD_CLUSTER_KEY}|" | \
-        sed "s|LIGHTHOUSE_SERVER_IP|$(get_lighthouse_server_ip)|" | \
+        sed "s|LOADBALANCER_SERVER_IP|$(get_loadbalancer_server_ip)|" | \
         podman run --interactive --rm quay.io/coreos/butane:release \
         > terraform/generated-files/bootstrap-processed.ign
 
@@ -171,7 +171,7 @@ generate_manifests() {
         sed "s|CONTROL_PLANE_SHA512|${control_plane_sha512sum}|" | \
         sed "s|CONTROL_PLANE_SOURCE_URL|${ignition_url}/master.ign|" | \
         sed "s|WIREGUARD_CLUSTER_KEY|${WIREGUARD_CLUSTER_KEY}|" | \
-        sed "s|LIGHTHOUSE_SERVER_IP|$(get_lighthouse_server_ip)|" | \
+        sed "s|LOADBALANCER_SERVER_IP|$(get_loadbalancer_server_ip)|" | \
         podman run --interactive --rm quay.io/coreos/butane:release \
         > terraform/generated-files/control-plane-processed.ign
 
@@ -180,7 +180,7 @@ generate_manifests() {
         sed "s|WORKER_SHA512|${worker_sha512sum}|" | \
         sed "s|WORKER_SOURCE_URL|${ignition_url}/worker.ign|" | \
         sed "s|WIREGUARD_CLUSTER_KEY|${WIREGUARD_CLUSTER_KEY}|" | \
-        sed "s|LIGHTHOUSE_SERVER_IP|$(get_lighthouse_server_ip)|" | \
+        sed "s|LOADBALANCER_SERVER_IP|$(get_loadbalancer_server_ip)|" | \
         podman run --interactive --rm quay.io/coreos/butane:release \
         > terraform/generated-files/worker-processed.ign
 }
@@ -343,8 +343,8 @@ main() {
     # Download OKD tools if they do not exist
     download_okd_tools_if_not_exists
 
-    # Create lighthouse server
-    create_lighthouse_server
+    # Create load balancer server
+    create_loadbalancer_server
 
     # Generate and serve the ignition configs
     generate_manifests

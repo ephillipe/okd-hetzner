@@ -4,12 +4,11 @@ Based on the great projects: [slauger/hcloud-okd4](https://github.com/slauger/hc
 
 The deployment defaults to a 5 node cluster with 2 load balancers:
 
-- 3x Master servers (CPX41)
+- 3x Master servers (CX41)
 - 2x Worker servers (CPX41)
-- 2x Load balancer (LB11)
-  - 1 for control plane
-  - 1 for workers
-- 1x Bootstrap server (CPX41)
+- 1x Load balancer server (CPX11)
+  - Also acts as 'lighthouse' for Wireguard cluster
+- 1x Bootstrap server (CX41)
   - Deleted after cluster is bootstrapped
 
 ## Usage
