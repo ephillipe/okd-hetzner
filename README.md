@@ -7,6 +7,7 @@ The deployment defaults to a 5 node cluster with 2 load balancers:
 - 3x Master servers (CX41)
 - 2x Worker servers (CPX41)
 - 1x Load balancer server (CPX11)
+  - Running HAProxy
   - Also acts as 'lighthouse' for Wireguard cluster
 - 1x Bootstrap server (CX41)
   - Deleted after cluster is bootstrapped
