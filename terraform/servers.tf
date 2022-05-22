@@ -56,7 +56,7 @@ data "local_file" "control_plane_ignition" {
 resource "hcloud_server" "okd_control_plane" {
   count = var.num_okd_control_plane
 
-  name        = "${var.cluster_name}-control${count.index}"
+  name        = "${var.cluster_name}-control-${count.index}"
   server_type = var.bootstrap_server_type
   image       = var.fedora_coreos_image_id
   location    = var.control_plane_server_location[count.index]
@@ -73,7 +73,7 @@ resource "hcloud_rdns" "control_plane" {
 
   server_id  = hcloud_server.okd_control_plane[count.index].id
   ip_address = hcloud_server.okd_control_plane[count.index].ipv4_address
-  dns_ptr    = "control${count.index}.${var.okd_domain}"
+  dns_ptr    = "control-${count.index}.${var.okd_domain}"
 }
 
 # Workers
@@ -84,7 +84,7 @@ data "local_file" "worker_ignition" {
 resource "hcloud_server" "okd_worker" {
   count = var.num_okd_workers
 
-  name        = "${var.cluster_name}-worker${count.index}"
+  name        = "${var.cluster_name}-worker-${count.index}"
   server_type = var.bootstrap_server_type
   image       = var.fedora_coreos_image_id
   location    = var.worker_server_location
@@ -101,5 +101,5 @@ resource "hcloud_rdns" "workers" {
 
   server_id  = hcloud_server.okd_worker[count.index].id
   ip_address = hcloud_server.okd_worker[count.index].ipv4_address
-  dns_ptr    = "worker${count.index}.${var.okd_domain}"
+  dns_ptr    = "worker-${count.index}.${var.okd_domain}"
 }
