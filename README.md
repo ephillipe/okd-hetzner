@@ -74,3 +74,13 @@ export HAPROXY_STATS_PASSWORD=""
 
 ### Run the install script:
 `okd-install.sh`
+
+## Troubleshoot
+Get bootstrap logs:
+```
+openshift-install gather bootstrap --dir=terraform/generated-files \
+  -bootstrap bootstrap.${OKD_DOMAIN} \
+    --master control-0.{OKD_DOMAIN} \
+    --master control-1.{OKD_DOMAIN} \
+    --master control-2.{OKD_DOMAIN}
+```
