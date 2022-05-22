@@ -1,3 +1,5 @@
+# HAProxy documentation:
+# https://cbonte.github.io/haproxy-dconv/2.5/configuration.html#5.3
 variant: fcos
 version: 1.4.0
 passwd:
@@ -66,7 +68,19 @@ storage:
             timeout http-keep-alive 10s
             timeout check           10s
             maxconn                 3000
-            default-server          init-addr none
+            default-server          init-addr last,resolvers,libc,none
+          resolvers internal
+            nameserver dns1 127.0.0.53:53
+            parse-resolv-conf
+            resolve_retries       999
+            timeout resolve       1s
+            timeout retry         1s
+            hold other           30s
+            hold refused         30s
+            hold nx              30s
+            hold timeout         30s
+            hold valid           10s
+            hold obsolete        30s
           frontend stats
             bind *:1936
             mode            http
