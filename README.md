@@ -17,10 +17,11 @@ The deployment defaults to a 5 node cluster with 2 load balancers:
 ### Host requirements:
 - Linux 64-bit
 - Applications:
-  - jq
-  - podman
-  - packer
-  - terraform
+  - [Podman](https://podman.io)
+  - [Packer](https://www.packer.io/downloads)
+  - [Terraform](https://www.terraform.io/downloads)
+  - [hcloud cli](https://github.com/hetznercloud/cli)
+  - [jq](https://stedolan.github.io/jq/)
 
 ### Set environment variables:
 ```

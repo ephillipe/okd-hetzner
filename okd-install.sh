@@ -330,6 +330,7 @@ main() {
         podman
         packer
         terraform
+        hcloud
     )
     for req in ${reqs[@]}; do
         check_requirement $req
