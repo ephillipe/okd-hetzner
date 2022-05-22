@@ -72,6 +72,7 @@ storage:
           resolvers mydns
             nameserver dns1 127.0.0.53:53
             nameserver dns2 1.1.1.1:53
+            nameserver dns3 1.0.0.1:53
             resolve_retries       9999
             timeout resolve       1s
             timeout retry         1s
