@@ -39,7 +39,7 @@ storage:
           WESHER_CLUSTER_KEY="WIREGUARD_CLUSTER_KEY"
           WESHER_CLUSTER_PORT="7946"
           WESHER_WIREGUARD_PORT="51820"
-          WESHER_OVERLAY_NET="10.0.0.0/16"
+          WESHER_OVERLAY_NET="WIREGUARD_OVERLAY_CIDR"
           WESHER_BIND_ADDR="$(curl -s http://169.254.169.254/hetzner/v1/metadata/public-ipv4)"
     - path: /etc/haproxy/haproxy.cfg
       mode: 0444

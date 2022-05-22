@@ -2,12 +2,13 @@
 set -eu -o pipefail
 
 # Set variables
-SSH_KEY=$(cat ~/.ssh/id_ed25519.pub)
+SSH_KEY="$(cat ~/.ssh/id_ed25519.pub)"
 CLUSTER_NAME="okd"
 OKD_DOMAIN="${CLUSTER_NAME}.${BASE_DOMAIN}"
-NUM_OKD_WORKERS=2
-NUM_OKD_CONTROL_PLANE=3
-REGISTRY_VOLUME_SIZE='50'
+NUM_OKD_WORKERS="2"
+NUM_OKD_CONTROL_PLANE="3"
+REGISTRY_VOLUME_SIZE="50"
+WIREGUARD_OVERLAY_CIDR="10.0.0.0/16"
 
 # Set tools and OS versions
 OKD_VERSION=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/openshift/okd/tags | jq -j -r .[0].name)
@@ -79,6 +80,7 @@ create_loadbalancer_server() {
     cat templates/butane-loadbalancer.yaml | \
         sed "s|SSH_KEY|${SSH_KEY}|" | \
         sed "s|WIREGUARD_CLUSTER_KEY|${WIREGUARD_CLUSTER_KEY}|" | \
+        sed "s|WIREGUARD_OVERLAY_CIDR|${WIREGUARD_OVERLAY_CIDR}|" | \
         sed "s|OKD_DOMAIN|${OKD_DOMAIN}|" | \
         sed "s|CLUSTER_NAME|${CLUSTER_NAME}|" | \
         sed "s|HAPROXY_STATS_PASSWORD|${HAPROXY_STATS_PASSWORD}|" | \
@@ -162,6 +164,7 @@ generate_manifests() {
         sed "s|BOOTSTRAP_SHA512|${bootstrap_sha512sum}|" | \
         sed "s|BOOTSTRAP_SOURCE_URL|${ignition_url}/bootstrap.ign|" | \
         sed "s|WIREGUARD_CLUSTER_KEY|${WIREGUARD_CLUSTER_KEY}|" | \
+        sed "s|WIREGUARD_OVERLAY_CIDR|${WIREGUARD_OVERLAY_CIDR}|" | \
         sed "s|LOADBALANCER_SERVER_IP|$(get_loadbalancer_server_ip)|" | \
         podman run --interactive --rm quay.io/coreos/butane:release \
         > terraform/generated-files/bootstrap-processed.ign
@@ -171,6 +174,7 @@ generate_manifests() {
         sed "s|CONTROL_PLANE_SHA512|${control_plane_sha512sum}|" | \
         sed "s|CONTROL_PLANE_SOURCE_URL|${ignition_url}/master.ign|" | \
         sed "s|WIREGUARD_CLUSTER_KEY|${WIREGUARD_CLUSTER_KEY}|" | \
+        sed "s|WIREGUARD_OVERLAY_CIDR|${WIREGUARD_OVERLAY_CIDR}|" | \
         sed "s|LOADBALANCER_SERVER_IP|$(get_loadbalancer_server_ip)|" | \
         podman run --interactive --rm quay.io/coreos/butane:release \
         > terraform/generated-files/control-plane-processed.ign
@@ -180,6 +184,7 @@ generate_manifests() {
         sed "s|WORKER_SHA512|${worker_sha512sum}|" | \
         sed "s|WORKER_SOURCE_URL|${ignition_url}/worker.ign|" | \
         sed "s|WIREGUARD_CLUSTER_KEY|${WIREGUARD_CLUSTER_KEY}|" | \
+        sed "s|WIREGUARD_OVERLAY_CIDR|${WIREGUARD_OVERLAY_CIDR}|" | \
         sed "s|LOADBALANCER_SERVER_IP|$(get_loadbalancer_server_ip)|" | \
         podman run --interactive --rm quay.io/coreos/butane:release \
         > terraform/generated-files/worker-processed.ign
