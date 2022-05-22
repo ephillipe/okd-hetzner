@@ -17,19 +17,19 @@ variable "hetzner_ssh_keys" {
 variable "num_okd_workers" {
   type = number
 
-  validation {
-    condition     = var.num_okd_workers == 2
-    error_message = "Number of worker servers must be 2."
-  }
+  # validation {
+  #   condition     = var.num_okd_workers == 2
+  #   error_message = "Number of worker servers must be 2."
+  # }
 }
 
 variable "num_okd_control_plane" {
   type = number
 
-  validation {
-    condition     = var.num_okd_control_plane == 3
-    error_message = "Number of control plane servers must be 3."
-  }
+  # validation {
+  #   condition     = var.num_okd_control_plane == 3
+  #   error_message = "Number of control plane servers must be 3."
+  # }
 }
 
 # Server image

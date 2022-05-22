@@ -17,6 +17,9 @@ systemd:
       After=network-online.target wesher.service
       Wants=network-online.target wesher.service
       [Service]
+      Type=simple
+      Restart=on-failure
+      RestartSec=5s
       ExecStartPre=-/bin/podman kill haproxy
       ExecStartPre=-/bin/podman rm haproxy
       ExecStartPre=/bin/podman pull docker.io/library/haproxy:lts-alpine
@@ -103,3 +106,4 @@ storage:
             balance source
             server CLUSTER_NAME-worker0 worker0.OKD_DOMAIN:80 check inter 1s
             server CLUSTER_NAME-worker1 worker1.OKD_DOMAIN:80 check inter 1s
+          
