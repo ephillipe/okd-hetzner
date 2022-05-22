@@ -69,10 +69,9 @@ storage:
             timeout check           10s
             maxconn                 3000
             default-server          init-addr none
-          resolvers mydns
-            nameserver dns1 127.0.0.53:53
-            nameserver dns2 1.1.1.1:53
-            nameserver dns3 1.0.0.1:53
+          resolvers cloudflaredns
+            nameserver dns1 1.1.1.1:53
+            nameserver dns2 1.0.0.1:53
             resolve_retries       9999
             timeout resolve       1s
             timeout retry         1s
@@ -97,27 +96,27 @@ storage:
           listen api-server-6443 
             bind *:6443
             mode tcp
-            server CLUSTER_NAME-bootstrap bootstrap.OKD_DOMAIN:6443 init-addr none check inter 1s backup resolvers mydns
-            server CLUSTER_NAME-control-0 control-0.OKD_DOMAIN:6443 init-addr none check inter 1s resolvers mydns
-            server CLUSTER_NAME-control-1 control-1.OKD_DOMAIN:6443 init-addr none check inter 1s resolvers mydns
-            server CLUSTER_NAME-control-2 control-2.OKD_DOMAIN:6443 init-addr none check inter 1s resolvers mydns
+            server CLUSTER_NAME-bootstrap bootstrap.OKD_DOMAIN:6443 init-addr none check inter 1s backup resolvers cloudflaredns
+            server CLUSTER_NAME-control-0 control-0.OKD_DOMAIN:6443 init-addr none check inter 1s resolvers cloudflaredns
+            server CLUSTER_NAME-control-1 control-1.OKD_DOMAIN:6443 init-addr none check inter 1s resolvers cloudflaredns
+            server CLUSTER_NAME-control-2 control-2.OKD_DOMAIN:6443 init-addr none check inter 1s resolvers cloudflaredns
           listen machine-config-server-22623 
             bind *:22623
             mode tcp
-            server CLUSTER_NAME-bootstrap bootstrap.OKD_DOMAIN:22623 init-addr none check inter 1s backup resolvers mydns
-            server CLUSTER_NAME-control-0 control-0.OKD_DOMAIN:22623 init-addr none check inter 1s resolvers mydns
-            server CLUSTER_NAME-control-1 control-1.OKD_DOMAIN:22623 init-addr none check inter 1s resolvers mydns
-            server CLUSTER_NAME-control-2 control-2.OKD_DOMAIN:22623 init-addr none check inter 1s resolvers mydns
+            server CLUSTER_NAME-bootstrap bootstrap.OKD_DOMAIN:22623 init-addr none check inter 1s backup resolvers cloudflaredns
+            server CLUSTER_NAME-control-0 control-0.OKD_DOMAIN:22623 init-addr none check inter 1s resolvers cloudflaredns
+            server CLUSTER_NAME-control-1 control-1.OKD_DOMAIN:22623 init-addr none check inter 1s resolvers cloudflaredns
+            server CLUSTER_NAME-control-2 control-2.OKD_DOMAIN:22623 init-addr none check inter 1s resolvers cloudflaredns
           listen ingress-router-443 
             bind *:443
             mode tcp
             balance source
-            server CLUSTER_NAME-worker-0 worker-0.OKD_DOMAIN:443 init-addr none check inter 1s resolvers mydns
-            server CLUSTER_NAME-worker-1 worker-1.OKD_DOMAIN:443 init-addr none check inter 1s resolvers mydns
+            server CLUSTER_NAME-worker-0 worker-0.OKD_DOMAIN:443 init-addr none check inter 1s resolvers cloudflaredns
+            server CLUSTER_NAME-worker-1 worker-1.OKD_DOMAIN:443 init-addr none check inter 1s resolvers cloudflaredns
           listen ingress-router-80 
             bind *:80
             mode tcp
             balance source
-            server CLUSTER_NAME-worker-0 worker-0.OKD_DOMAIN:80 init-addr none check inter 1s resolvers mydns
-            server CLUSTER_NAME-worker-1 worker-1.OKD_DOMAIN:80 init-addr none check inter 1s resolvers mydns
+            server CLUSTER_NAME-worker-0 worker-0.OKD_DOMAIN:80 init-addr none check inter 1s resolvers cloudflaredns
+            server CLUSTER_NAME-worker-1 worker-1.OKD_DOMAIN:80 init-addr none check inter 1s resolvers cloudflaredns
           
