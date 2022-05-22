@@ -39,7 +39,7 @@ storage:
           WESHER_CLUSTER_KEY="WIREGUARD_CLUSTER_KEY"
           WESHER_CLUSTER_PORT="7946"
           WESHER_WIREGUARD_PORT="51820"
-          WESHER_OVERLAY_NET="10.0.0.0/8"
+          WESHER_OVERLAY_NET="10.0.0.0/16"
           WESHER_BIND_ADDR="$(curl -s http://169.254.169.254/hetzner/v1/metadata/public-ipv4)"
     - path: /etc/haproxy/haproxy.cfg
       mode: 0444
@@ -81,25 +81,25 @@ storage:
             bind *:6443
             mode tcp
             server bootstrap bootstrap.OKD_DOMAIN:6443 check inter 1s backup 
-            server CLUSTER_NAME-control-0 control-0.OKD_DOMAIN:6443 check inter 1s
-            server CLUSTER_NAME-control-1 control-1.OKD_DOMAIN:6443 check inter 1s
-            server CLUSTER_NAME-control-2 control-2.OKD_DOMAIN:6443 check inter 1s
+            server CLUSTER_NAME-control0 control0.OKD_DOMAIN:6443 check inter 1s
+            server CLUSTER_NAME-control1 control1.OKD_DOMAIN:6443 check inter 1s
+            server CLUSTER_NAME-control2 control2.OKD_DOMAIN:6443 check inter 1s
           listen machine-config-server-22623 
             bind *:22623
             mode tcp
             server bootstrap bootstrap.OKD_DOMAIN:22623 check inter 1s backup 
-            server CLUSTER_NAME-control-0 control-0.OKD_DOMAIN:22623 check inter 1s
-            server CLUSTER_NAME-control-1 control-1.OKD_DOMAIN:22623 check inter 1s
-            server CLUSTER_NAME-control-2 control-2.OKD_DOMAIN:22623 check inter 1s
+            server CLUSTER_NAME-control0 control0.OKD_DOMAIN:22623 check inter 1s
+            server CLUSTER_NAME-control1 control1.OKD_DOMAIN:22623 check inter 1s
+            server CLUSTER_NAME-control2 control2.OKD_DOMAIN:22623 check inter 1s
           listen ingress-router-443 
             bind *:443
             mode tcp
             balance source
-            server CLUSTER_NAME-worker-0 worker-0.OKD_DOMAIN:443 check inter 1s
-            server CLUSTER_NAME-worker-1 worker-1.OKD_DOMAIN:443 check inter 1s
+            server CLUSTER_NAME-worker0 worker0.OKD_DOMAIN:443 check inter 1s
+            server CLUSTER_NAME-worker1 worker1.OKD_DOMAIN:443 check inter 1s
           listen ingress-router-80 
             bind *:80
             mode tcp
             balance source
-            server CLUSTER_NAME-worker-0 worker-0.OKD_DOMAIN:80 check inter 1s
-            server CLUSTER_NAME-worker-1 worker-1.OKD_DOMAIN:80 check inter 1s
+            server CLUSTER_NAME-worker0 worker0.OKD_DOMAIN:80 check inter 1s
+            server CLUSTER_NAME-worker1 worker1.OKD_DOMAIN:80 check inter 1s

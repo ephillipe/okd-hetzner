@@ -370,7 +370,7 @@ main() {
     # Wait for the bootstrap to complete
     echo -e "\nWaiting for bootstrap to complete.\n"
 
-    openshift-install --dir=terraform/generated-files wait-for bootstrap-complete
+    openshift-install --dir=terraform/generated-files wait-for bootstrap-complete --log-level=info
 
     # Remove bootstrap node and nginx/cloudflared containers as bootstrap is complete
     echo -e "\nRemoving bootstrap resources.\n"
