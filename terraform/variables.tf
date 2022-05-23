@@ -61,12 +61,12 @@ variable "worker_server_type" {
 # Server locations
 variable "loadbalancer_server_location" {
   type    = string
-  default = "fsn1"
+  default = "nbg1"
 }
 
 variable "bootstrap_server_location" {
   type    = string
-  default = "fsn1"
+  default = "nbg1"
 }
 
 variable "control_plane_server_location" {

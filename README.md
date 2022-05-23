@@ -1,3 +1,5 @@
+Work in progress. Not yet fully functional.
+
 Based on the great projects: [slauger/hcloud-okd4](https://github.com/slauger/hcloud-okd4) and [dustymabe/digitalocean-okd-install](https://github.com/dustymabe/digitalocean-okd-install).
 
 ## Architecture
@@ -79,8 +81,8 @@ export HAPROXY_STATS_PASSWORD=""
 Get bootstrap logs:
 ```
 openshift-install gather bootstrap --dir=terraform/generated-files \
-  -bootstrap bootstrap.${OKD_DOMAIN} \
-    --master control-0.{OKD_DOMAIN} \
-    --master control-1.{OKD_DOMAIN} \
-    --master control-2.{OKD_DOMAIN}
+  --bootstrap bootstrap.okd.shards.sh \
+  --master control-0.{OKD_DOMAIN} \
+  --master control-1.{OKD_DOMAIN} \
+  --master control-2.{OKD_DOMAIN}
 ```

@@ -19,7 +19,7 @@ resource "cloudflare_record" "dns_a_api_int" {
 }
 
 # Routes / Apps
-resource "cloudflare_record" "dns_a_apps_wc" {
+resource "cloudflare_record" "dns_a_apps" {
   zone_id = var.cloudflare_dns_zone_id
   name    = "*.apps.${var.okd_domain}"
   value   = hcloud_server.okd_loadbalancer.ipv4_address
@@ -57,3 +57,40 @@ resource "cloudflare_record" "dns_a_workers" {
   type    = "A"
   ttl     = 120
 }
+
+# # etcd
+# resource "cloudflare_record" "dns_a_etcd" {
+#   count = var.num_okd_control_plane
+
+#   zone_id = var.cloudflare_dns_zone_id
+#   name    = "etcd-${count.index}.${var.okd_domain}"
+#   value   = hcloud_server.okd_control_plane[count.index].ipv4_address
+#   type    = "A"
+#   ttl     = 120
+# }
+
+# resource "cloudflare_record" "dns_a_etcd_bootstrap" {
+#   zone_id = var.cloudflare_dns_zone_id
+#   name    = "etcd-0.${var.okd_domain}"
+#   value   = hcloud_server.okd_bootstrap.ipv4_address
+#   type    = "A"
+#   ttl     = 120
+# }
+
+# resource "cloudflare_record" "dns_srv_etcd" {
+#   count = var.num_okd_control_plane + 1
+
+#   zone_id = var.cloudflare_dns_zone_id
+#   name    = "_etcd-server-ssl._tcp.${var.okd_domain}"
+#   type    = "SRV"
+
+#   data {
+#     service  = "_etcd-server-ssl"
+#     proto    = "_tcp"
+#     name     = "_etcd-server-ssl._tcp.${var.okd_domain}"
+#     priority = 0
+#     weight   = 10
+#     port     = 2380
+#     target   = "etcd-${count.index}.${var.okd_domain}"
+#   }
+# }
