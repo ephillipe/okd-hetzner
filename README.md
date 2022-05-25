@@ -17,6 +17,7 @@ The deployment defaults to a 5 node cluster with 2 load balancers:
 ### Host requirements:
 - Linux 64-bit
 - Applications:
+  - hcloud
   - jq
   - podman
   - packer

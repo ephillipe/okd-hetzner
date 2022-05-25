@@ -43,26 +43,41 @@ create_image_if_not_exists() {
         packer/fedora-coreos.pkr.hcl &> /dev/null
 }
 
+get_os_type(){
+    unameOut="$(uname -s)"
+    case "${unameOut}" in
+        Linux*)     machine=linux;;
+        Darwin*)    machine=mac;;
+        CYGWIN*)    machine=cygwin;;
+        MINGW*)     machine=mingw;;
+        *)          machine="unknown:${unameOut}"
+    esac
+    echo ${machine}
+}
+
 download_okd_tools_if_not_exists() {
     echo -e "\nDownloading and installing OKD tools.\n"
 
-    if which oc &> /dev/null; then
+    if /usr/bin/which oc &> /dev/null; then
         if oc version | grep ${OKD_VERSION} &> /dev/null; then
             echo "Correct OKD tools version already exists. Skipping OKD tools download and installation."
             return 0
         fi
     fi
 
+    # Create the ~/.local/bin/ folder if it's doesn't exist
+    # mkdir -p ~/.local/bin/  
+
     # Remove older OKD tools version
     rm -f ~/.local/bin/{openshift-install,oc,kubectl}
 
     # Download OKD tools
-    curl -sSL https://github.com/openshift/okd/releases/download/${OKD_VERSION}/openshift-install-linux-${OKD_VERSION}.tar.gz -o openshift-install-linux-${OKD_VERSION}.tar.gz >/dev/null
-    curl -sSL https://github.com/openshift/okd/releases/download/${OKD_VERSION}/openshift-client-linux-${OKD_VERSION}.tar.gz -o openshift-client-linux-${OKD_VERSION}.tar.gz >/dev/null
+    curl -sSL https://github.com/openshift/okd/releases/download/${OKD_VERSION}/openshift-install-$(get_os_type)-${OKD_VERSION}.tar.gz -o openshift-install-linux-${OKD_VERSION}.tar.gz >/dev/null
+    curl -sSL https://github.com/openshift/okd/releases/download/${OKD_VERSION}/openshift-client-$(get_os_type)-${OKD_VERSION}.tar.gz -o openshift-client-linux-${OKD_VERSION}.tar.gz >/dev/null
 
     # Install OKD tools
-    tar -zxf openshift-install-linux-${OKD_VERSION}.tar.gz -C ~/.local/bin/ openshift-install
-    tar -zxf openshift-client-linux-${OKD_VERSION}.tar.gz -C ~/.local/bin/ {oc,kubectl}
+    tar -zxf openshift-install-linux-${OKD_VERSION}.tar.gz -C /usr/local/bin/ openshift-install
+    tar -zxf openshift-client-linux-${OKD_VERSION}.tar.gz -C /usr/local/bin/ {oc,kubectl}
 
     # Cleanup tars
     rm -f openshift-install-linux-${OKD_VERSION}.tar.gz
@@ -84,7 +99,11 @@ generate_manifests() {
                  NUM_OKD_CONTROL_PLANE \
                  SSH_KEY;
     do
-        sed -i "s#$token#${!token}#" terraform/generated-files/install-config.yaml
+        if [ "$(get_os_type)" == "mac" ]; then
+            sed -i '' "s#$token#${!token}#" terraform/generated-files/install-config.yaml
+        else 
+            sed -i "s#$token#${!token}#" terraform/generated-files/install-config.yaml
+        fi
     done
 
     # Generate manifests and create the ignition configs from that
@@ -93,9 +112,17 @@ generate_manifests() {
 
     # Create a pod and serve the ignition files via Cloudflare tunnels 
     # so we can pull from it on startup. They're too large to fit in user-data.
-    bootstrap_sha512sum=$(sha512sum terraform/generated-files/bootstrap.ign | cut -d ' ' -f 1)
-    control_plane_sha512sum=$(sha512sum terraform/generated-files/master.ign | cut -d ' ' -f 1)
-    worker_sha512sum=$(sha512sum terraform/generated-files/worker.ign | cut -d ' ' -f 1)
+    if [ "$(get_os_type)" == "mac" ]; then
+        bootstrap_sha512sum=$(shasum -a 512 terraform/generated-files/bootstrap.ign | cut -d ' ' -f 1)
+        control_plane_sha512sum=$(shasum -a 512 terraform/generated-files/master.ign | cut -d ' ' -f 1)
+        worker_sha512sum=$(shasum -a 512 terraform/generated-files/worker.ign | cut -d ' ' -f 1)
+    else 
+        bootstrap_sha512sum=$(sha512sum terraform/generated-files/bootstrap.ign | cut -d ' ' -f 1)
+        control_plane_sha512sum=$(sha512sum terraform/generated-files/master.ign | cut -d ' ' -f 1)
+        worker_sha512sum=$(sha512sum terraform/generated-files/worker.ign | cut -d ' ' -f 1)
+    fi
+    echo $bootstrap_sha512sum
+exit 1
 
     echo -e "\nServing ignition files via Cludflare tunnel.\n"
     # Remove ignition-server pod if it's already running
@@ -272,7 +299,7 @@ which() {
 
 check_requirement() {
     req=$1
-    if ! which $req &>/dev/null; then
+    if ! /usr/bin/which $req &>/dev/null; then
         echo "No $req. Can't continue" 1>&2
         return 1
     fi
@@ -294,6 +321,7 @@ main() {
 
     # Check for required software
     reqs=(
+        hcloud
         jq
         podman
         packer
@@ -369,9 +397,13 @@ main() {
     fixup_registry_storage
 }
 
-main $@
-if [ $? -ne 0 ]; then
-    exit 1
-else
-    exit 0
+if [ ! -z "$@" ]; then
+    $@
+else 
+    main $@
+    if [ $? -ne 0 ]; then
+        exit 1
+    else
+        exit 0
+    fi
 fi

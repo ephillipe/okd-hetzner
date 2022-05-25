@@ -4,3 +4,4 @@ terraform/.terraform*
 terraform/terraform.tfstate
 terraform/terraform.tfstate.*
 packer/config.ign
+.env
